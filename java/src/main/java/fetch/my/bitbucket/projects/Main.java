@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.io.IOUtils;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
@@ -11,11 +12,12 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.Comparator;
+import java.util.List;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static java.nio.file.Files.newInputStream;
 import static java.util.Collections.unmodifiableList;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.StreamSupport.stream;
@@ -25,17 +27,16 @@ class Main {
     public static void main(String[] args) throws Exception {
 
         if (args.length != 1) {
-            System.err.println("Usage: java -jar <jar> <properties-file>");
+            System.err.println("Usage: java -jar <jar> <config.json>");
             System.exit(1);
         }
 
-        Properties properties = loadProperties(args[0]);
-        String username = getRequiredProperty(properties, "username");
-        String password = getRequiredProperty(properties, "password");
-        Path directory = Paths.get(getRequiredProperty(properties, "directory"));
+        ObjectMapper mapper = new ObjectMapper();
+
+        Config config = mapper.readValue(new File(args[0]), Config.class);
 
         System.out.println("Fetching projects...");
-        List<String> sshUrls = getSshUrls(username, password);
+        List<String> sshUrls = getSshUrls(config.username(), config.password(), mapper);
         if (sshUrls.isEmpty()) {
             System.out.println("No project found.");
         } else {
@@ -45,7 +46,7 @@ class Main {
 
         for (String sshUrl : sshUrls) {
             System.out.println("Fetching " + sshUrl);
-            fetchProject(directory, sshUrl);
+            fetchProject(config.directory(), sshUrl);
         }
     }
 
@@ -77,9 +78,13 @@ class Main {
         return sshUrl.substring(i + 1).replaceAll("\\.git$", "");
     }
 
-    private static List<String> getSshUrls(String username, String password) throws IOException {
+    private static List<String> getSshUrls(
+            String username,
+            String password,
+            ObjectMapper mapper
+    ) throws IOException {
+
         List<String> sshUrls = new ArrayList<>();
-        ObjectMapper mapper = new ObjectMapper();
         URL url = new URL("https://bitbucket.org/api/2.0/repositories/" + username);
         while (url != null) {
             try (InputStream in = connect(url, username, password)) {
@@ -127,21 +132,5 @@ class Main {
                 throw new IllegalStateException(IOUtils.toString(copy, UTF_8));
             }
         }
-    }
-
-    private static Properties loadProperties(String path) throws IOException {
-        Properties properties = new Properties();
-        try (InputStream in = newInputStream(Paths.get(path))) {
-            properties.load(in);
-        }
-        return properties;
-    }
-
-    private static String getRequiredProperty(Properties properties, String key) {
-        String value = properties.getProperty(key, "").trim();
-        if (value.isEmpty()) {
-            throw new IllegalStateException(key + " is not specified.");
-        }
-        return value;
     }
 }

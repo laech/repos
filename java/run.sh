@@ -5,6 +5,6 @@ set -o errexit
 cd "$(dirname $0)"
 
 echo 'Running Maven build...'
-mvn -q clean package
+mvn package
 
-java -jar target/fetch-my-bitbucket-projects.jar local.properties
+java -jar target/fetch-my-bitbucket-projects.jar ../config.json

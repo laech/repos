@@ -1,0 +1,5 @@
+{
+    "username": "my-username",
+    "password": "my-app-password",
+    "directory": "/my/check/out/path"
+}
