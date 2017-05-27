@@ -8,4 +8,4 @@ echo 'Running Stack build...'
 
 stack build
 
-stack exec fetch-my-bitbucket-projects ../config.json
+stack exec fetch-my-bitbucket-projects config.json
