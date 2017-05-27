@@ -6,7 +6,9 @@ cabal-version:       >=1.10
 executable fetch-my-bitbucket-projects
   hs-source-dirs:      src
   main-is:             Main.hs
-  other-modules:       Config
+  other-modules:       Bitbucket
+                     , Config
+                     , Git
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   build-depends:       aeson
                      , base
