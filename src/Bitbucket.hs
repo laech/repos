@@ -61,11 +61,11 @@ getProjectSshUrls username password = do
 downloadSshUrls :: Url -> User -> Pass -> Http.Manager -> IO [String]
 downloadSshUrls url user pass manager = do
   pages <- downloadPages (Just url) user pass manager
-  return $ concatMap extractSshUrls pages
+  pure $ concatMap extractSshUrls pages
 
 
 downloadPages :: Maybe Url -> User -> Pass -> Http.Manager -> IO [Page]
-downloadPages Nothing _ _ _ = return []
+downloadPages Nothing _ _ _ = pure []
 downloadPages (Just url) user pass manager = do
   page <- downloadPage url user pass manager
   (page:) <$> downloadPages (next page) user pass manager
@@ -74,7 +74,7 @@ downloadPages (Just url) user pass manager = do
 basicAuthRequest :: Url -> User -> Pass -> IO Http.Request
 basicAuthRequest url user pass = do
   request <- Http.parseUrlThrow url
-  return $ Http.applyBasicAuth
+  pure $ Http.applyBasicAuth
     (Char8.pack user)
     (Char8.pack pass)
     request
@@ -84,7 +84,7 @@ downloadPage :: Url -> User -> Pass -> Http.Manager -> IO Page
 downloadPage url user pass manager = do
   request <- basicAuthRequest url user pass
   response <- Http.httpLbs request manager
-  return . parsePage . Http.responseBody $ response
+  pure . parsePage . Http.responseBody $ response
 
 
 parsePage :: LazyChar8.ByteString -> Page
