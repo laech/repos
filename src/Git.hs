@@ -1,6 +1,7 @@
 module Git (fetchRepos) where
 
 import           Control.Exception (Exception, throwIO)
+import           Control.Monad     (when)
 import           Data.Typeable     (Typeable)
 import           System.Directory  (doesDirectoryExist)
 import           System.Exit       (ExitCode (ExitSuccess))
@@ -23,9 +24,8 @@ execute :: CreateProcess -> IO ()
 execute p = do
   (_, _, _, handle) <- createProcess p
   exitCode <- waitForProcess handle
-  case exitCode of
-    ExitSuccess -> return ()
-    _           -> throwIO (ProcessException (show exitCode))
+  when (exitCode /= ExitSuccess)
+    (throwIO (ProcessException (show exitCode)))
 
 
 gitFetch :: FilePath -> CreateProcess
