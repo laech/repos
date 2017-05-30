@@ -1,18 +1,17 @@
 {-# LANGUAGE DeriveGeneric #-}
 
-module Bitbucket (getProjectSshUrls) where
+module Bitbucket (getRepoSshUrls) where
 
 import qualified Data.ByteString.Char8      as Char8
 import qualified Data.ByteString.Lazy.Char8 as LazyChar8
-import qualified Data.List                  as List
 import qualified Network.HTTP.Client        as Http
 
 import           Control.Exception          (Exception, throw)
 import           Data.Aeson                 (FromJSON, eitherDecode)
+import           Data.List                  (isPrefixOf, sort)
 import           Data.Typeable              (Typeable)
 import           GHC.Generics               (Generic)
 import           Network.HTTP.Client.TLS    (tlsManagerSettings)
-import           Network.HTTP.Types.Status  (statusCode)
 
 
 data Page = Page { values :: [Repository], next :: Maybe String }
@@ -48,11 +47,11 @@ type User = String
 type Pass = String
 
 
-getProjectSshUrls :: String -> String -> IO [String]
-getProjectSshUrls username password =
+getRepoSshUrls :: String -> String -> IO [String]
+getRepoSshUrls username password =
   let url = "https://bitbucket.org/api/2.0/repositories/" ++ username
       manager = Http.newManager tlsManagerSettings
-  in List.sort <$> (downloadSshUrls url username password =<< manager)
+  in sort <$> (downloadSshUrls url username password =<< manager)
 
 
 downloadSshUrls :: Url -> User -> Pass -> Http.Manager -> IO [String]
@@ -93,4 +92,4 @@ extractSshUrls page = sshUrls
     repos = values page
     clones = concatMap (clone . links) repos
     hrefs = map href clones
-    sshUrls = filter (List.isPrefixOf "ssh:") hrefs
+    sshUrls = filter (isPrefixOf "ssh:") hrefs

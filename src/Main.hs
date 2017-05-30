@@ -1,24 +1,12 @@
 module Main where
 
-import qualified Config
+import qualified Bitbucket
+import qualified Gitlab
 
-import           Bitbucket          (getProjectSshUrls)
-import           Git                (fetchRepos)
+import           Config
+import           Git
 import           System.Environment (getArgs)
 import           System.Exit        (die)
-
-
-process :: FilePath -> IO ()
-process configFile = do
-
-  config <- Config.load configFile
-  sshUrls <- getProjectSshUrls
-    (Config.username config)
-    (Config.password config)
-
-  if null sshUrls
-    then putStrLn "No project found."
-    else fetchRepos (Config.directory config) sshUrls
 
 
 main :: IO ()
@@ -27,3 +15,23 @@ main = do
   case args of
     [configFile] -> process configFile
     _            -> die "Usage: <this-program> <config-file>"
+
+
+process :: FilePath -> IO ()
+process configFile = do
+  config <- Config.load configFile
+  (++) <$> getRepoSshUrlsFromGitlab config
+       <*> getRepoSshUrlsFromBitbucket config
+       >>= fetchRepos (directory config)
+
+
+getRepoSshUrlsFromGitlab :: Config -> IO [String]
+getRepoSshUrlsFromGitlab config =
+  Gitlab.getRepoSshUrls (gitlabToken config)
+
+
+getRepoSshUrlsFromBitbucket :: Config -> IO [String]
+getRepoSshUrlsFromBitbucket config =
+  Bitbucket.getRepoSshUrls
+    (bitbucketUsername config)
+    (bitbucketPassword config)

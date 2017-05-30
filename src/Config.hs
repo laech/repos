@@ -14,9 +14,10 @@ import           Data.Typeable        (Typeable)
 import           GHC.Generics         (Generic)
 
 data Config = Config
-  { username  :: String
-  , password  :: String
-  , directory :: FilePath
+  { bitbucketUsername :: String
+  , bitbucketPassword :: String
+  , gitlabToken       :: String
+  , directory         :: FilePath
   } deriving (Generic, Show)
 
 instance FromJSON Config
