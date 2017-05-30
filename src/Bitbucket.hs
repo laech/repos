@@ -74,10 +74,10 @@ basicAuthRequest url user pass =
 
 
 downloadPage :: Url -> User -> Pass -> Http.Manager -> IO Page
-downloadPage url user pass manager =
-  let request = basicAuthRequest url user pass
-      response = (flip Http.httpLbs) manager =<< request
-  in parsePage . Http.responseBody <$> response
+downloadPage url user pass manager = do
+  request <- basicAuthRequest url user pass
+  response <- Http.httpLbs request manager
+  pure . parsePage . Http.responseBody $ response
 
 
 parsePage :: LazyChar8.ByteString -> Page
