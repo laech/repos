@@ -49,19 +49,15 @@ type Pass = String
 
 
 getProjectSshUrls :: String -> String -> IO [String]
-getProjectSshUrls username password = do
-  manager <- Http.newManager tlsManagerSettings
-  List.sort <$> downloadSshUrls
-    ("https://bitbucket.org/api/2.0/repositories/" ++ username)
-    username
-    password
-    manager
+getProjectSshUrls username password =
+  let url = "https://bitbucket.org/api/2.0/repositories/" ++ username
+      manager = Http.newManager tlsManagerSettings
+  in List.sort <$> (downloadSshUrls url username password =<< manager)
 
 
 downloadSshUrls :: Url -> User -> Pass -> Http.Manager -> IO [String]
-downloadSshUrls url user pass manager = do
-  pages <- downloadPages (Just url) user pass manager
-  pure $ concatMap extractSshUrls pages
+downloadSshUrls url user pass manager =
+  concatMap extractSshUrls <$> downloadPages (Just url) user pass manager
 
 
 downloadPages :: Maybe Url -> User -> Pass -> Http.Manager -> IO [Page]
@@ -72,19 +68,16 @@ downloadPages (Just url) user pass manager = do
 
 
 basicAuthRequest :: Url -> User -> Pass -> IO Http.Request
-basicAuthRequest url user pass = do
-  request <- Http.parseUrlThrow url
-  pure $ Http.applyBasicAuth
-    (Char8.pack user)
-    (Char8.pack pass)
-    request
+basicAuthRequest url user pass =
+  Http.applyBasicAuth (Char8.pack user) (Char8.pack pass) <$>
+  Http.parseUrlThrow url
 
 
 downloadPage :: Url -> User -> Pass -> Http.Manager -> IO Page
-downloadPage url user pass manager = do
-  request <- basicAuthRequest url user pass
-  response <- Http.httpLbs request manager
-  pure . parsePage . Http.responseBody $ response
+downloadPage url user pass manager =
+  let request = basicAuthRequest url user pass
+      response = (flip Http.httpLbs) manager =<< request
+  in parsePage . Http.responseBody <$> response
 
 
 parsePage :: LazyChar8.ByteString -> Page
