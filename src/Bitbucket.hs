@@ -11,6 +11,7 @@ import           Data.Aeson                 (FromJSON, eitherDecode)
 import           Data.List                  (isPrefixOf, sort)
 import           Data.Typeable              (Typeable)
 import           GHC.Generics               (Generic)
+import           Network.HTTP.Client        (httpLbs)
 import           Network.HTTP.Client.TLS    (tlsManagerSettings)
 
 
@@ -61,8 +62,8 @@ downloadSshUrls url user pass manager =
 
 downloadPages :: Maybe Url -> User -> Pass -> Http.Manager -> IO [Page]
 downloadPages Nothing _ _ _ = pure []
-downloadPages (Just url) user pass manager = do
-  page <- downloadPage url user pass manager
+downloadPages (Just url) user pass manager =
+  downloadPage url user pass manager >>= \page ->
   (page:) <$> downloadPages (next page) user pass manager
 
 
@@ -73,9 +74,9 @@ basicAuthRequest url user pass =
 
 
 downloadPage :: Url -> User -> Pass -> Http.Manager -> IO Page
-downloadPage url user pass manager = do
-  request <- basicAuthRequest url user pass
-  response <- Http.httpLbs request manager
+downloadPage url user pass manager =
+  basicAuthRequest url user pass >>= \request ->
+  httpLbs request manager >>= \response ->
   pure . parsePage . Http.responseBody $ response
 
 
