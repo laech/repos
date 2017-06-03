@@ -11,6 +11,8 @@ import           Data.Aeson                 (FromJSON, eitherDecode)
 import           Data.List                  (sort)
 import           Data.Typeable              (Typeable)
 import           GHC.Generics               (Generic)
+import           Network.HTTP.Client        (httpLbs, parseUrlThrow,
+                                             responseBody)
 import           Network.HTTP.Client.TLS    (tlsManagerSettings)
 
 
@@ -38,10 +40,10 @@ getRepoSshUrls token =
 
 
 getRepos :: Url -> Http.Manager -> IO [Repo]
-getRepos url manager = do
-  request <- Http.parseUrlThrow url
-  response <- Http.httpLbs request manager
-  pure . parseRepos . Http.responseBody $ response
+getRepos url manager =
+  parseUrlThrow url >>= \request ->
+  httpLbs request manager >>= \response ->
+  pure . parseRepos . responseBody $ response
 
 
 parseRepos :: LazyChar8.ByteString -> [Repo]
