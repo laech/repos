@@ -10,16 +10,13 @@ import           System.Exit        (die)
 
 
 main :: IO ()
-main = do
-  args <- getArgs
-  case args of
-    [configFile] -> process configFile
-    _            -> die "Usage: <this-program> <config-file>"
+main = getArgs >>= \args -> case args of
+  [configFile] -> process configFile
+  _            -> die "Usage: <this-program> <config-file>"
 
 
 process :: FilePath -> IO ()
-process configFile = do
-  config <- Config.load configFile
+process path = Config.load path >>= \config ->
   (++) <$> getRepoSshUrlsFromGitlab config
        <*> getRepoSshUrlsFromBitbucket config
        >>= fetchRepos (directory config)
