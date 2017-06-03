@@ -11,7 +11,8 @@ import           Data.Aeson                 (FromJSON, eitherDecode)
 import           Data.List                  (isPrefixOf, sort)
 import           Data.Typeable              (Typeable)
 import           GHC.Generics               (Generic)
-import           Network.HTTP.Client        (httpLbs)
+import           Network.HTTP.Client        (applyBasicAuth, httpLbs,
+                                             parseUrlThrow, responseBody)
 import           Network.HTTP.Client.TLS    (tlsManagerSettings)
 
 
@@ -69,15 +70,15 @@ downloadPages (Just url) user pass manager =
 
 basicAuthRequest :: Url -> User -> Pass -> IO Http.Request
 basicAuthRequest url user pass =
-  Http.applyBasicAuth (Char8.pack user) (Char8.pack pass) <$>
-  Http.parseUrlThrow url
+  applyBasicAuth (Char8.pack user) (Char8.pack pass) <$>
+  parseUrlThrow url
 
 
 downloadPage :: Url -> User -> Pass -> Http.Manager -> IO Page
 downloadPage url user pass manager =
   basicAuthRequest url user pass >>= \request ->
   httpLbs request manager >>= \response ->
-  pure . parsePage . Http.responseBody $ response
+  pure . parsePage . responseBody $ response
 
 
 parsePage :: LazyChar8.ByteString -> Page
