@@ -6,7 +6,7 @@ module Config
   , load
   ) where
 
-import qualified Data.ByteString.Lazy as L
+import qualified Data.ByteString.Lazy as LazyByteString
 
 import           Control.Exception    (Exception, throwIO)
 import           Data.Aeson           (FromJSON, eitherDecode)
@@ -28,8 +28,7 @@ newtype ConfigException = ConfigException String
 instance Exception ConfigException
 
 load :: FilePath -> IO Config
-load path = do
-  json <- L.readFile path
+load path = LazyByteString.readFile path >>= \json ->
   case eitherDecode json of
     Left err     -> throwIO (ConfigException err)
     Right config -> return config
