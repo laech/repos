@@ -21,9 +21,9 @@ getProjectNameFromSshUrl = dropExtension . takeFileName
 
 
 execute :: CreateProcess -> IO ()
-execute p = do
-  (_, _, _, handle) <- createProcess p
-  exitCode <- waitForProcess handle
+execute p =
+  createProcess p >>= \(_, _, _, handle) ->
+  waitForProcess handle >>= \exitCode ->
   when (exitCode /= ExitSuccess)
     (throwIO (ProcessException (show exitCode)))
 
@@ -39,10 +39,10 @@ gitClone sshUrl parentDirectory = (shell $ "git clone -v " ++ sshUrl)
 
 
 fetchRepo :: FilePath -> String -> IO ()
-fetchRepo parentDirectory sshUrl = do
+fetchRepo parentDirectory sshUrl =
   let directory = parentDirectory </> getProjectNameFromSshUrl sshUrl
-  exists <- doesDirectoryExist directory
-  execute $ if exists
+      exists = doesDirectoryExist directory
+  in exists >>= \exists -> execute $ if exists
     then gitFetch directory
     else gitClone sshUrl parentDirectory
 
