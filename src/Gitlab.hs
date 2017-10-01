@@ -8,7 +8,6 @@ import qualified Network.HTTP.Client        as Http
 
 import           Control.Exception          (Exception, throw)
 import           Data.Aeson                 (FromJSON, eitherDecode)
-import           Data.List                  (sort)
 import           Data.Typeable              (Typeable)
 import           GHC.Generics               (Generic)
 import           Network.HTTP.Client        (httpLbs, parseUrlThrow,
@@ -36,7 +35,7 @@ getRepoSshUrls :: Token -> IO [String]
 getRepoSshUrls token =
   let url = "https://gitlab.com/api/v4/projects?owned=true&private_token=" ++ token
       manager = Http.newManager tlsManagerSettings
-  in sort . map ssh_url_to_repo <$> (getRepos url =<< manager)
+  in map ssh_url_to_repo <$> (getRepos url =<< manager)
 
 
 getRepos :: Url -> Http.Manager -> IO [Repo]

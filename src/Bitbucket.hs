@@ -8,7 +8,7 @@ import qualified Network.HTTP.Client        as Http
 
 import           Control.Exception          (Exception, throw)
 import           Data.Aeson                 (FromJSON, eitherDecode)
-import           Data.List                  (isPrefixOf, sort)
+import           Data.List                  (isPrefixOf)
 import           Data.Typeable              (Typeable)
 import           GHC.Generics               (Generic)
 import           Network.HTTP.Client        (applyBasicAuth, httpLbs,
@@ -53,7 +53,7 @@ getRepoSshUrls :: String -> String -> IO [String]
 getRepoSshUrls username password =
   let url = "https://bitbucket.org/api/2.0/repositories/" ++ username
       manager = Http.newManager tlsManagerSettings
-  in sort <$> (downloadSshUrls url username password =<< manager)
+  in downloadSshUrls url username password =<< manager
 
 
 downloadSshUrls :: Url -> User -> Pass -> Http.Manager -> IO [String]

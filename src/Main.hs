@@ -5,30 +5,26 @@ import qualified Gitlab
 
 import           Config
 import           Git
-import           System.Environment (getArgs)
-import           System.Exit        (die)
-
+import           System.Environment
+import           System.Exit
 
 main :: IO ()
-main = getArgs >>= \args -> case args of
-  [configFile] -> process configFile
-  _            -> die "Usage: <this-program> <config-file>"
+main = do
+  args <- getArgs
+  case args of
+    [configFile] -> process configFile >>= exitWith
+    _            -> die "Usage: <this-program> <config-file>"
 
-
-process :: FilePath -> IO ()
-process path = Config.load path >>= \config ->
-  (++) <$> getRepoSshUrlsFromGitlab config
-       <*> getRepoSshUrlsFromBitbucket config
-       >>= fetchRepos (directory config)
-
+process :: FilePath -> IO ExitCode
+process path = do
+  config <- Config.load path
+  gitlabUrls <- getRepoSshUrlsFromGitlab config
+  bitbucketUrls <- getRepoSshUrlsFromBitbucket config
+  fetchRepos (directory config) (gitlabUrls ++ bitbucketUrls)
 
 getRepoSshUrlsFromGitlab :: Config -> IO [String]
-getRepoSshUrlsFromGitlab config =
-  Gitlab.getRepoSshUrls (gitlabToken config)
-
+getRepoSshUrlsFromGitlab config = Gitlab.getRepoSshUrls (gitlabToken config)
 
 getRepoSshUrlsFromBitbucket :: Config -> IO [String]
 getRepoSshUrlsFromBitbucket config =
-  Bitbucket.getRepoSshUrls
-    (bitbucketUsername config)
-    (bitbucketPassword config)
+  Bitbucket.getRepoSshUrls (bitbucketUsername config) (bitbucketPassword config)

@@ -1,69 +1,51 @@
-module Git (fetchRepos) where
+module Git
+  ( fetchRepos
+  ) where
 
-import           Control.Exception (Exception, throwIO)
-import           Control.Monad     (when)
-import           Data.Typeable     (Typeable)
-import           System.Directory  (doesDirectoryExist)
-import           System.Exit       (ExitCode (ExitFailure, ExitSuccess))
-import           System.FilePath   (dropExtension, takeFileName, (</>))
-import           System.Process    (CreateProcess, createProcess, cwd, shell,
-                                    waitForProcess)
-
-
-newtype ProcessException = ProcessException String
-  deriving (Typeable, Show)
-
-instance Exception ProcessException
-
+import           Control.Concurrent.Async
+import           Control.Monad
+import           Data.List
+import           System.Directory
+import           System.Exit
+import           System.FilePath
+import           System.Process
 
 getProjectNameFromSshUrl :: String -> String
 getProjectNameFromSshUrl = dropExtension . takeFileName
 
-
-execute :: CreateProcess -> IO ()
-execute p =
-  createProcess p >>= \(_, _, _, handle) ->
-  waitForProcess handle >>= \exitCode ->
-  when (exitCode /= ExitSuccess)
-    (throwIO (ProcessException (show exitCode)))
-
-
 -- Executes a process, if exit code is 1, execute the second.
-execute1 :: CreateProcess -> CreateProcess -> IO ()
+execute1 :: CreateProcess -> CreateProcess -> IO (ExitCode, String, String)
 execute1 p1 p2 = do
-  (_, _, _, handle) <- createProcess p1
-  exitCode <- waitForProcess handle
+  result@(exitCode, _, _) <- readCreateProcessWithExitCode p1 ""
   case exitCode of
-    ExitSuccess -> return ()
-    ExitFailure r -> if r == 1
-      then execute p2
-      else (throwIO (ProcessException (show exitCode)))
-
+    ExitSuccess   -> return result
+    ExitFailure _ -> readCreateProcessWithExitCode p2 ""
 
 gitPull :: FilePath -> CreateProcess
-gitPull directory = (shell "git pull -v")
-  { cwd = Just directory }
-
+gitPull directory = (shell "git pull -q") {cwd = Just directory}
 
 gitMergeAbort :: FilePath -> CreateProcess
-gitMergeAbort directory = (shell "git merge --abort")
-  { cwd = Just directory }
-
+gitMergeAbort directory = (shell "git merge -q --abort") {cwd = Just directory}
 
 gitClone :: String -> FilePath -> CreateProcess
-gitClone sshUrl parentDirectory = (shell $ "git clone -v " ++ sshUrl)
-  { cwd = Just parentDirectory }
+gitClone sshUrl parentDir =
+  (shell $ "git clone -q " ++ sshUrl) {cwd = Just parentDir}
 
+fetchRepo :: FilePath -> String -> IO ExitCode
+fetchRepo parentDir sshUrl = do
+  let projectDir = parentDir </> getProjectNameFromSshUrl sshUrl
+  projectDirExists <- doesDirectoryExist projectDir
+  (exitCode, out, err) <-
+    if projectDirExists
+      then execute1 (gitPull projectDir) (gitMergeAbort projectDir)
+      else readCreateProcessWithExitCode (gitClone sshUrl parentDir) ""
+  putStrLn $ sshUrl ++ " -> " ++ projectDir ++ "\n" ++ out ++ "\n" ++ err
+  return exitCode
 
-fetchRepo :: FilePath -> String -> IO ()
-fetchRepo parentDirectory sshUrl = do
-  let directory = parentDirectory </> getProjectNameFromSshUrl sshUrl
-  exists <- doesDirectoryExist directory
-  putStrLn ("\n> " ++ show directory)
-  if exists
-    then execute1 (gitPull directory) (gitMergeAbort directory)
-    else execute  (gitClone sshUrl parentDirectory)
-
-
-fetchRepos :: FilePath -> [String] -> IO ()
-fetchRepos parentDirectory = mapM_ (fetchRepo parentDirectory)
+fetchRepos :: FilePath -> [String] -> IO ExitCode
+fetchRepos parentDir sshUrls = do
+  results <- mapConcurrently (fetchRepo parentDir) sshUrls
+  return $
+    if all (== ExitSuccess) results
+      then ExitSuccess
+      else ExitFailure 1
