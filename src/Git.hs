@@ -31,6 +31,12 @@ gitClone :: String -> FilePath -> CreateProcess
 gitClone sshUrl parentDir =
   (shell $ "git clone -q " ++ sshUrl) {cwd = Just parentDir}
 
+getStatusSymbol :: ExitCode -> String
+getStatusSymbol exitCode =
+  case exitCode of
+    ExitSuccess   -> "✓"
+    ExitFailure _ -> "✗"
+
 fetchRepo :: FilePath -> String -> IO ExitCode
 fetchRepo parentDir sshUrl = do
   let projectDir = parentDir </> getProjectNameFromSshUrl sshUrl
@@ -39,11 +45,14 @@ fetchRepo parentDir sshUrl = do
     if projectDirExists
       then execute1 (gitPull projectDir) (gitMergeAbort projectDir)
       else readCreateProcessWithExitCode (gitClone sshUrl parentDir) ""
-  putStrLn $ sshUrl ++ " -> " ++ projectDir ++ "\n" ++ out ++ "\n" ++ err
+  putStrLn $
+    getStatusSymbol exitCode ++
+    " " ++ sshUrl ++ intercalate "\n" (filter (not . null) [out, err])
   return exitCode
 
 fetchRepos :: FilePath -> [String] -> IO ExitCode
 fetchRepos parentDir sshUrls = do
+  putStrLn $ "> " ++ parentDir
   results <- mapConcurrently (fetchRepo parentDir) sshUrls
   return $
     if all (== ExitSuccess) results
