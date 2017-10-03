@@ -1,12 +1,13 @@
 module Main where
 
-import qualified Bitbucket
-import qualified Gitlab
-
+import           Bitbucket
 import           Config
+import           Data.Either
 import           Git
+import           Gitlab
 import           System.Environment
 import           System.Exit
+import           System.IO
 
 main :: IO ()
 main = do
@@ -18,13 +19,31 @@ main = do
 process :: FilePath -> IO ExitCode
 process path = do
   config <- Config.load path
-  gitlabUrls <- getRepoSshUrlsFromGitlab config
-  bitbucketUrls <- getRepoSshUrlsFromBitbucket config
-  fetchRepos (directory config) (gitlabUrls ++ bitbucketUrls)
+  results <- getSshUrls config >>= printErrors
+  let allUrls = foldl1 (++) . map getOrEmpty $ results
+  exitCode <- fetchRepos (directory config) allUrls
+  return $
+    case exitCode of
+      ExitSuccess ->
+        if any isLeft results
+          then ExitFailure 1
+          else ExitSuccess
+      _ -> exitCode
 
-getRepoSshUrlsFromGitlab :: Config -> IO [String]
-getRepoSshUrlsFromGitlab config = Gitlab.getRepoSshUrls (gitlabToken config)
+getOrEmpty :: Either a [b] -> [b]
+getOrEmpty x =
+  case x of
+    Right val -> val
+    _         -> []
 
-getRepoSshUrlsFromBitbucket :: Config -> IO [String]
-getRepoSshUrlsFromBitbucket config =
-  Bitbucket.getRepoSshUrls (bitbucketUsername config) (bitbucketPassword config)
+getSshUrls :: Config -> IO [Either String [String]]
+getSshUrls config =
+  sequence
+    [ getGitlabRepoSshUrls (gitlabToken config)
+    , getBitbucketRepoSshUrls
+        (bitbucketUsername config)
+        (bitbucketPassword config)
+    ]
+
+printErrors :: [Either String a] -> IO [Either String a]
+printErrors xs = mapM_ (hPutStrLn stderr) (lefts xs) >> return xs
