@@ -46,22 +46,34 @@ getOutputHandle exitCode =
 
 fetchRepo :: FilePath -> String -> IO ExitCode
 fetchRepo parentDir sshUrl = do
-  let projectDir = parentDir </> getProjectNameFromSshUrl sshUrl
-  projectDirExists <- doesDirectoryExist projectDir
-  (exitCode, out, err) <-
-    if projectDirExists
-      then execute1 (gitPull projectDir) (gitMergeAbort projectDir)
-      else readCreateProcessWithExitCode (gitClone sshUrl parentDir) ""
-  hPutStrLn (getOutputHandle exitCode) $
-    getStatusSymbol exitCode ++
-    " " ++ sshUrl ++ intercalate "\n" (filter (not . null) [out, err])
+  result@(exitCode, out, err) <- doGitUpdate parentDir sshUrl
+  printGitResult result sshUrl
   return exitCode
+
+doGitUpdate :: FilePath -> String -> IO (ExitCode, String, String)
+doGitUpdate parentDir sshUrl =
+  let projectDir = parentDir </> getProjectNameFromSshUrl sshUrl
+  in doesDirectoryExist projectDir >>= \exists ->
+       if exists
+         then execute1 (gitPull projectDir) (gitMergeAbort projectDir)
+         else readCreateProcessWithExitCode (gitClone sshUrl parentDir) ""
+
+printGitResult :: (ExitCode, String, String) -> String -> IO ()
+printGitResult (exitCode, out, err) sshUrl =
+  hPutStr handle $ status ++ " " ++ sshUrl ++ "\n" ++ message
+  where
+    handle = getOutputHandle exitCode
+    status = getStatusSymbol exitCode
+    message = intercalate "\n" (filter (not . null) [out, err])
 
 fetchRepos :: FilePath -> [String] -> IO ExitCode
 fetchRepos parentDir sshUrls = do
   putStrLn $ "> " ++ parentDir
   results <- mapConcurrently (fetchRepo parentDir) sshUrls
-  return $
-    if all (== ExitSuccess) results
-      then ExitSuccess
-      else ExitFailure 1
+  return $ allSuccess results
+
+allSuccess :: [ExitCode] -> ExitCode
+allSuccess results =
+  if all (== ExitSuccess) results
+    then ExitSuccess
+    else ExitFailure 1

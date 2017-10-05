@@ -3,7 +3,7 @@
 module Config
   ( Config(..)
   , ConfigException
-  , load
+  , loadConfig
   ) where
 
 import qualified Data.ByteString.Lazy as LazyByteString
@@ -22,13 +22,15 @@ data Config = Config
 
 instance FromJSON Config
 
-newtype ConfigException = ConfigException String
+newtype ConfigException =
+  ConfigException String
   deriving (Typeable, Show)
 
 instance Exception ConfigException
 
-load :: FilePath -> IO Config
-load path = LazyByteString.readFile path >>= \json ->
-  case eitherDecode json of
-    Left err     -> throwIO (ConfigException err)
-    Right config -> return config
+loadConfig :: FilePath -> IO Config
+loadConfig path =
+  LazyByteString.readFile path >>= \json ->
+    case eitherDecode json of
+      Left err     -> throwIO (ConfigException err)
+      Right config -> return config

@@ -18,7 +18,7 @@ main = do
 
 process :: FilePath -> IO ExitCode
 process path = do
-  config <- Config.load path
+  config <- loadConfig path
   results <- getSshUrls config >>= printErrors
   let allUrls = foldl1 (++) . map getOrEmpty $ results
   exitCode <- fetchRepos (directory config) allUrls
