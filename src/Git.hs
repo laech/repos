@@ -26,7 +26,7 @@ gitPull :: FilePath -> CreateProcess
 gitPull directory = (shell "git pull -q") {cwd = Just directory}
 
 gitMergeAbort :: FilePath -> CreateProcess
-gitMergeAbort directory = (shell "git merge -q --abort") {cwd = Just directory}
+gitMergeAbort directory = (shell "git merge --abort") {cwd = Just directory}
 
 gitClone :: String -> FilePath -> CreateProcess
 gitClone sshUrl parentDir =
