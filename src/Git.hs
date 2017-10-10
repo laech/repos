@@ -68,7 +68,6 @@ printGitResult (exitCode, out, err) sshUrl =
 
 fetchRepos :: FilePath -> [String] -> IO ExitCode
 fetchRepos parentDir sshUrls = do
-  putStrLn $ "> " ++ parentDir
   results <- mapConcurrently (fetchRepo parentDir) sshUrls
   return $ allSuccess results
 

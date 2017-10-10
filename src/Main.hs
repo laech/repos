@@ -2,6 +2,7 @@ module Main where
 
 import           Bitbucket
 import           Config
+import           Control.Concurrent.Async
 import           Data.Either
 import           Git
 import           Gitlab
@@ -19,31 +20,22 @@ main = do
 process :: FilePath -> IO ExitCode
 process path = do
   config <- loadConfig path
-  results <- getSshUrls config >>= printErrors
-  let allUrls = foldl1 (++) . map getOrEmpty $ results
-  exitCode <- fetchRepos (directory config) allUrls
+  putStrLn $ "> " ++ (directory config)
+  results <-
+    mapConcurrently
+      ((=<<) $ processSshUrls (directory config))
+      [ getGitlabRepoSshUrls (gitlabToken config)
+      , getBitbucketRepoSshUrls
+          (bitbucketUsername config)
+          (bitbucketPassword config)
+      ]
   return $
-    case exitCode of
-      ExitSuccess ->
-        if any isLeft results
-          then ExitFailure 1
-          else ExitSuccess
-      _ -> exitCode
+    if all (== ExitSuccess) results
+      then ExitSuccess
+      else ExitFailure 1
 
-getOrEmpty :: Either a [b] -> [b]
-getOrEmpty x =
-  case x of
-    Right val -> val
-    _         -> []
-
-getSshUrls :: Config -> IO [Either String [String]]
-getSshUrls config =
-  sequence
-    [ getGitlabRepoSshUrls (gitlabToken config)
-    , getBitbucketRepoSshUrls
-        (bitbucketUsername config)
-        (bitbucketPassword config)
-    ]
-
-printErrors :: [Either String a] -> IO [Either String a]
-printErrors xs = mapM_ (hPutStrLn stderr) (lefts xs) >> return xs
+processSshUrls :: FilePath -> Either String [String] -> IO ExitCode
+processSshUrls directory sshUrls =
+  case sshUrls of
+    Right urls -> fetchRepos directory urls
+    Left err   -> hPutStrLn stderr err >> return (ExitFailure 1)
