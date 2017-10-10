@@ -86,5 +86,4 @@ extractSshUrls page = sshUrls
   where
     repos = values page
     clones = concatMap (clone . links) repos
-    hrefs = map href clones
-    sshUrls = filter (isPrefixOf "ssh:") hrefs
+    sshUrls = map href . filter (\clone -> name clone == "ssh") $ clones
