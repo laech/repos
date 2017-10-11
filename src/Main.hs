@@ -20,7 +20,7 @@ main = do
 process :: FilePath -> IO ExitCode
 process path = do
   config <- loadConfig path
-  putStrLn $ "> " ++ (directory config)
+  putStrLn $ "> " ++ directory config
   results <-
     mapConcurrently
       ((=<<) $ processSshUrls (directory config))
