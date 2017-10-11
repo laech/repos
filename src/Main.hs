@@ -3,6 +3,7 @@ module Main where
 import           Bitbucket
 import           Config
 import           Control.Concurrent.Async
+import           Control.Exception
 import           Data.Either
 import           Git
 import           Gitlab
@@ -23,7 +24,7 @@ process path = do
   putStrLn $ "> " ++ directory config
   results <-
     mapConcurrently
-      ((=<<) $ processSshUrls (directory config))
+      (processSshUrls (directory config))
       [ getGitlabRepoSshUrls (gitlabToken config)
       , getBitbucketRepoSshUrls
           (bitbucketUsername config)
@@ -34,8 +35,10 @@ process path = do
       then ExitSuccess
       else ExitFailure 1
 
-processSshUrls :: FilePath -> Either String [String] -> IO ExitCode
-processSshUrls directory sshUrls =
-  case sshUrls of
-    Right urls -> fetchRepos directory urls
-    Left err   -> hPutStrLn stderr err >> return (ExitFailure 1)
+processSshUrls :: FilePath -> IO [String] -> IO ExitCode
+processSshUrls directory getSshUrls = do
+  result <-
+    try (getSshUrls >>= fetchRepos directory) :: IO (Either SomeException ())
+  case result of
+    Left e -> hPrint stderr e >> return (ExitFailure 1)
+    _      -> return ExitSuccess

@@ -3,6 +3,7 @@ module Git
   ) where
 
 import           Control.Concurrent.Async
+import           Control.Exception
 import           Control.Monad
 import           Data.List
 import           System.Directory
@@ -66,13 +67,7 @@ printGitResult (exitCode, out, err) sshUrl =
     status = getStatusSymbol exitCode
     message = intercalate "\n" (filter (not . null) [out, err])
 
-fetchRepos :: FilePath -> [String] -> IO ExitCode
+fetchRepos :: FilePath -> [String] -> IO ()
 fetchRepos parentDir sshUrls = do
   results <- mapConcurrently (fetchRepo parentDir) sshUrls
-  return $ allSuccess results
-
-allSuccess :: [ExitCode] -> ExitCode
-allSuccess results =
-  if all (== ExitSuccess) results
-    then ExitSuccess
-    else ExitFailure 1
+  when (any (/= ExitSuccess) results) $ throwIO $ ExitFailure 1
