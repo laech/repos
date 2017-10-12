@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 
-module Bitbucket
+module Project.Bitbucket
   ( getBitbucketRepoSshUrls
   ) where
 
@@ -11,11 +11,11 @@ import qualified Network.HTTP.Client        as Http
 import           Control.Exception
 import           Data.Aeson                 (FromJSON, eitherDecode)
 import           Data.List
-import           Exception
 import           GHC.Generics
 import           Network.HTTP.Client
 import           Network.HTTP.Client.TLS
 import           Network.HTTP.Types.URI
+import           Project.Exception
 
 data Page = Page
   { values :: [Repository]

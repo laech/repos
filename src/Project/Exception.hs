@@ -1,4 +1,4 @@
-module Exception
+module Project.Exception
   ( JsonException(..)
   ) where
 

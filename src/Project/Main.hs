@@ -1,12 +1,12 @@
 module Main where
 
-import           Bitbucket
-import           Config
 import           Control.Concurrent.Async
 import           Control.Exception
 import           Data.Either
-import           Git
-import           Gitlab
+import           Project.Bitbucket
+import           Project.Config
+import           Project.Git
+import           Project.Gitlab
 import           System.Environment
 import           System.Exit
 import           System.IO

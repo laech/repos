@@ -5,12 +5,12 @@ cabal-version:       >=1.10
 
 executable fetch-my-git-projects
   hs-source-dirs:      src
-  main-is:             Main.hs
-  other-modules:       Bitbucket
-                     , Config
-                     , Exception
-                     , Git
-                     , Gitlab
+  main-is:             Project/Main.hs
+  other-modules:       Project.Bitbucket
+                     , Project.Config
+                     , Project.Exception
+                     , Project.Git
+                     , Project.Gitlab
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   build-depends:       aeson
                      , async

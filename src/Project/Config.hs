@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 
-module Config
+module Project.Config
   ( Config(..)
   , ConfigException
   , loadConfig

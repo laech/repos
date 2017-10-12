@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 
-module Gitlab
+module Project.Gitlab
   ( getGitlabRepoSshUrls
   ) where
 
@@ -11,10 +11,10 @@ import qualified Network.HTTP.Client        as Http
 import           Control.Exception
 import           Data.Aeson
 import           Data.Typeable
-import           Exception
 import           GHC.Generics
 import           Network.HTTP.Client
 import           Network.HTTP.Client.TLS
+import           Project.Exception
 
 newtype Repo = Repo
   { ssh_url_to_repo :: String
