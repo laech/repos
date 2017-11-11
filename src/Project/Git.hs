@@ -15,23 +15,28 @@ import           System.Process
 getProjectNameFromSshUrl :: String -> String
 getProjectNameFromSshUrl = dropExtension . takeFileName
 
--- Executes a process, if exit code is 1, execute the second.
-execute1 :: CreateProcess -> CreateProcess -> IO (ExitCode, String, String)
-execute1 p1 p2 = do
-  result@(exitCode, _, _) <- readCreateProcessWithExitCode p1 ""
+execute :: [CreateProcess] -> IO (ExitCode, String, String)
+execute [x] = readCreateProcessWithExitCode x ""
+execute (x:xs) = do
+  result@(exitCode, _, _) <- execute [x]
   case exitCode of
-    ExitSuccess   -> return result
-    ExitFailure _ -> readCreateProcessWithExitCode p2 ""
+    ExitSuccess   -> execute xs
+    ExitFailure _ -> return result
 
-gitPull :: FilePath -> CreateProcess
-gitPull directory = (shell "git pull -q") {cwd = Just directory}
+gitFetch :: FilePath -> CreateProcess
+gitFetch directory =
+  (shell "git fetch --all --quiet")
+    {cwd = Just directory}
 
-gitMergeAbort :: FilePath -> CreateProcess
-gitMergeAbort directory = (shell "git merge --abort") {cwd = Just directory}
+gitMerge :: FilePath -> CreateProcess
+gitMerge directory =
+  (shell "git merge FETCH_HEAD")
+    {cwd = Just directory}
 
 gitClone :: String -> FilePath -> CreateProcess
 gitClone sshUrl parentDir =
-  (shell $ "git clone -q " ++ sshUrl) {cwd = Just parentDir}
+  (shell $ "git clone --quiet " ++ sshUrl)
+    {cwd = Just parentDir}
 
 getStatusSymbol :: ExitCode -> String
 getStatusSymbol exitCode =
@@ -52,20 +57,24 @@ fetchRepo parentDir sshUrl = do
   return exitCode
 
 doGitUpdate :: FilePath -> String -> IO (ExitCode, String, String)
-doGitUpdate parentDir sshUrl =
+doGitUpdate parentDir sshUrl = do
   let projectDir = parentDir </> getProjectNameFromSshUrl sshUrl
-  in doesDirectoryExist projectDir >>= \exists ->
-       if exists
-         then execute1 (gitPull projectDir) (gitMergeAbort projectDir)
-         else readCreateProcessWithExitCode (gitClone sshUrl parentDir) ""
+  exists <- doesDirectoryExist projectDir
+  if exists
+    then execute [gitFetch projectDir, gitMerge projectDir]
+    else readCreateProcessWithExitCode (gitClone sshUrl parentDir) ""
 
 printGitResult :: (ExitCode, String, String) -> String -> IO ()
-printGitResult (exitCode, out, err) sshUrl =
-  hPutStr handle $ status ++ " " ++ sshUrl ++ "\n" ++ message
+printGitResult (exitCode, out, err) sshUrl = do
+  hPutStr handle $ status ++ " " ++ sshUrl ++ "\n" ++ message exitCode
+  hFlush handle
   where
     handle = getOutputHandle exitCode
     status = getStatusSymbol exitCode
-    message = intercalate "\n" (filter (not . null) [out, err])
+    message exitCode =
+      if exitCode == ExitSuccess
+      then ""
+      else intercalate "\n" (filter (not . null) [out, err])
 
 fetchRepos :: FilePath -> [String] -> IO ()
 fetchRepos parentDir sshUrls = do

@@ -1,9 +1,9 @@
-name:                fetch-my-git-projects
+name:                projects
 version:             0.1.0.0
 build-type:          Simple
 cabal-version:       >=1.10
 
-executable fetch-my-git-projects
+executable projects
   hs-source-dirs:      src
   main-is:             Project/Main.hs
   other-modules:       Project.Bitbucket

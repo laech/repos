@@ -8,4 +8,4 @@ echo 'Running Stack build...'
 
 stack build
 
-stack exec fetch-my-git-projects config.json
+stack exec projects config.json
