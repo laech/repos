@@ -1,19 +1,20 @@
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveGeneric     #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Project.Gitlab
   ( getGitlabRepoSshUrls
   ) where
 
-import qualified Data.ByteString.Char8      as Char8
 import qualified Data.ByteString.Lazy.Char8 as LazyChar8
-import qualified Network.HTTP.Client        as Http
 
 import           Control.Exception
 import           Data.Aeson
+import           Data.CaseInsensitive
 import           Data.Typeable
 import           GHC.Generics
 import           Network.HTTP.Client
 import           Network.HTTP.Client.TLS
+import           Network.HTTP.Types.Header
 import           Project.Exception
 
 newtype Repo = Repo
@@ -30,16 +31,19 @@ getGitlabRepoSshUrls :: Token -> IO [String]
 getGitlabRepoSshUrls token = do
   let url =
         "https://gitlab.com/api/v4/projects?owned=true&private_token=" ++ token
-  manager <- Http.newManager tlsManagerSettings
+  manager <- newManager tlsManagerSettings
   fmap ssh_url_to_repo <$> getRepos url manager
 
-getRepos :: Url -> Http.Manager -> IO [Repo]
+getRepos :: Url -> Manager -> IO [Repo]
 getRepos url manager = do
-  request <- parseUrlThrow url
+  request <- withHeaders <$> parseUrlThrow url
   response <- httpLbs request manager
   case parseRepos . responseBody $ response of
     Right repos -> return repos
     Left err    -> throwIO $ JsonException err
+  where
+    withHeaders request = request
+      {requestHeaders = [(hUserAgent, "None")]}
 
 parseRepos :: LazyChar8.ByteString -> Either String [Repo]
 parseRepos = eitherDecode

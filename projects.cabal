@@ -16,6 +16,7 @@ executable projects
                      , async
                      , base
                      , bytestring
+                     , case-insensitive
                      , directory
                      , filepath
                      , http-client
