@@ -3,6 +3,7 @@ module Project.Git
   ) where
 
 import           Control.Concurrent.Async
+import           Control.Concurrent.Chan
 import           Control.Exception
 import           Control.Monad
 import           Data.List
@@ -50,10 +51,12 @@ getOutputHandle exitCode =
     ExitSuccess   -> stdout
     ExitFailure _ -> stderr
 
-fetchRepo :: FilePath -> String -> IO ExitCode
-fetchRepo parentDir sshUrl = do
+type IOChan = Chan (Maybe (IO ()))
+
+fetchRepo :: IOChan -> FilePath -> String -> IO ExitCode
+fetchRepo output parentDir sshUrl = do
   result@(exitCode, out, err) <- doGitUpdate parentDir sshUrl
-  printGitResult result sshUrl
+  writeChan output $ Just (printGitResult result sshUrl)
   return exitCode
 
 doGitUpdate :: FilePath -> String -> IO (ExitCode, String, String)
@@ -76,7 +79,20 @@ printGitResult (exitCode, out, err) sshUrl = do
       then ""
       else intercalate "\n" (filter (not . null) [out, err])
 
+run :: IOChan -> IO ()
+run chan = do
+  maybeAction <- readChan chan
+  case maybeAction of
+    Nothing -> return ()
+    Just action -> do
+      action
+      run chan
+
 fetchRepos :: FilePath -> [String] -> IO ()
 fetchRepos parentDir sshUrls = do
-  results <- mapConcurrently (fetchRepo parentDir) sshUrls
+  output <- newChan :: IO (IOChan)
+  outputer <- async (run output)
+  results <- mapConcurrently (fetchRepo output parentDir) sshUrls
+  writeChan output Nothing
+  wait outputer
   when (any (/= ExitSuccess) results) $ throwIO $ ExitFailure 1
