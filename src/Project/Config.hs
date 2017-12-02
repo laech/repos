@@ -8,10 +8,10 @@ module Project.Config
 
 import qualified Data.ByteString.Lazy as LazyByteString
 
-import Control.Exception (Exception, throwIO)
-import Data.Aeson (FromJSON, eitherDecode)
-import Data.Typeable (Typeable)
-import GHC.Generics (Generic)
+import Control.Exception
+import Data.Aeson
+import Data.Typeable
+import GHC.Generics
 
 data Config = Config
   { bitbucketUsername :: String

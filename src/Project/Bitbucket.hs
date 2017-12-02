@@ -6,10 +6,9 @@ module Project.Bitbucket
 
 import qualified Data.ByteString.Char8 as Char8
 import qualified Data.ByteString.Lazy.Char8 as LazyChar8
-import qualified Network.HTTP.Client as Http
 
 import Control.Exception
-import Data.Aeson (FromJSON, eitherDecode)
+import Data.Aeson
 import Data.List
 import GHC.Generics
 import Network.HTTP.Client
@@ -52,26 +51,26 @@ type Pass = String
 getBitbucketRepoSshUrls :: String -> String -> IO [String]
 getBitbucketRepoSshUrls username password =
   let url = "https://bitbucket.org/api/2.0/repositories/" ++ username
-      manager = Http.newManager tlsManagerSettings
+      manager = newManager tlsManagerSettings
   in downloadSshUrls url username password =<< manager
 
-downloadSshUrls :: Url -> User -> Pass -> Http.Manager -> IO [String]
+downloadSshUrls :: Url -> User -> Pass -> Manager -> IO [String]
 downloadSshUrls url user pass manager = do
   pages <- downloadPages (Just url) user pass manager
   return $ concatMap extractSshUrls pages
 
-downloadPages :: Maybe Url -> User -> Pass -> Http.Manager -> IO [Page]
+downloadPages :: Maybe Url -> User -> Pass -> Manager -> IO [Page]
 downloadPages Nothing _ _ _ = return []
 downloadPages (Just url) user pass manager = do
   page <- downloadPage url user pass manager
   pages <- downloadPages (next page) user pass manager
   return $ page : pages
 
-basicAuthRequest :: Url -> User -> Pass -> IO Http.Request
+basicAuthRequest :: Url -> User -> Pass -> IO Request
 basicAuthRequest url user pass =
   applyBasicAuth (Char8.pack user) (Char8.pack pass) <$> parseUrlThrow url
 
-downloadPage :: Url -> User -> Pass -> Http.Manager -> IO Page
+downloadPage :: Url -> User -> Pass -> Manager -> IO Page
 downloadPage url user pass manager = do
   request <- basicAuthRequest url user pass
   response <- httpLbs request manager
