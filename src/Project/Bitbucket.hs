@@ -4,22 +4,22 @@ module Project.Bitbucket
   ( getBitbucketRepoSshUrls
   ) where
 
-import qualified Data.ByteString.Char8      as Char8
+import qualified Data.ByteString.Char8 as Char8
 import qualified Data.ByteString.Lazy.Char8 as LazyChar8
-import qualified Network.HTTP.Client        as Http
+import qualified Network.HTTP.Client as Http
 
-import           Control.Exception
-import           Data.Aeson                 (FromJSON, eitherDecode)
-import           Data.List
-import           GHC.Generics
-import           Network.HTTP.Client
-import           Network.HTTP.Client.TLS
-import           Network.HTTP.Types.URI
-import           Project.Exception
+import Control.Exception
+import Data.Aeson (FromJSON, eitherDecode)
+import Data.List
+import GHC.Generics
+import Network.HTTP.Client
+import Network.HTTP.Client.TLS
+import Network.HTTP.Types.URI
+import Project.Exception
 
 data Page = Page
   { values :: [Repository]
-  , next   :: Maybe String
+  , next :: Maybe String
   } deriving (Generic, Show)
 
 newtype Repository = Repository
@@ -76,7 +76,7 @@ downloadPage url user pass manager = do
   request <- basicAuthRequest url user pass
   response <- httpLbs request manager
   case eitherDecode . responseBody $ response of
-    Left err   -> throwIO $ JsonException err
+    Left err -> throwIO $ JsonException err
     Right page -> return page
 
 extractSshUrls :: Page -> [String]

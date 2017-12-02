@@ -2,8 +2,8 @@ module Project.Exception
   ( JsonException(..)
   ) where
 
-import           Control.Exception
-import           Data.Typeable
+import Control.Exception
+import Data.Typeable
 
 newtype JsonException = JsonException
   { message :: String

@@ -2,16 +2,16 @@ module Project.Git
   ( fetchRepos
   ) where
 
-import           Control.Concurrent.Async
-import           Control.Concurrent.Chan
-import           Control.Exception
-import           Control.Monad
-import           Data.List
-import           System.Directory
-import           System.Exit
-import           System.FilePath
-import           System.IO
-import           System.Process
+import Control.Concurrent.Async
+import Control.Concurrent.Chan
+import Control.Exception
+import Control.Monad
+import Data.List
+import System.Directory
+import System.Exit
+import System.FilePath
+import System.IO
+import System.Process
 
 getProjectNameFromSshUrl :: String -> String
 getProjectNameFromSshUrl = dropExtension . takeFileName
@@ -21,34 +21,29 @@ execute [x] = readCreateProcessWithExitCode x ""
 execute (x:xs) = do
   result@(exitCode, _, _) <- execute [x]
   case exitCode of
-    ExitSuccess   -> execute xs
+    ExitSuccess -> execute xs
     ExitFailure _ -> return result
 
 gitFetch :: FilePath -> CreateProcess
-gitFetch directory =
-  (shell "git fetch --all --quiet")
-    {cwd = Just directory}
+gitFetch directory = (shell "git fetch --all --quiet") {cwd = Just directory}
 
 gitMerge :: FilePath -> CreateProcess
-gitMerge directory =
-  (shell "git merge FETCH_HEAD")
-    {cwd = Just directory}
+gitMerge directory = (shell "git merge FETCH_HEAD") {cwd = Just directory}
 
 gitClone :: String -> FilePath -> CreateProcess
 gitClone sshUrl parentDir =
-  (shell $ "git clone --quiet " ++ sshUrl)
-    {cwd = Just parentDir}
+  (shell $ "git clone --quiet " ++ sshUrl) {cwd = Just parentDir}
 
 getStatusSymbol :: ExitCode -> String
 getStatusSymbol exitCode =
   case exitCode of
-    ExitSuccess   -> "✓"
+    ExitSuccess -> "✓"
     ExitFailure _ -> "✗"
 
 getOutputHandle :: ExitCode -> Handle
 getOutputHandle exitCode =
   case exitCode of
-    ExitSuccess   -> stdout
+    ExitSuccess -> stdout
     ExitFailure _ -> stderr
 
 type IOChan = Chan (Maybe (IO ()))
@@ -76,8 +71,8 @@ printGitResult (exitCode, out, err) sshUrl = do
     status = getStatusSymbol exitCode
     message exitCode =
       if exitCode == ExitSuccess
-      then ""
-      else intercalate "\n" (filter (not . null) [out, err])
+        then ""
+        else intercalate "\n" (filter (not . null) [out, err])
 
 run :: IOChan -> IO ()
 run chan = do
@@ -90,7 +85,7 @@ run chan = do
 
 fetchRepos :: FilePath -> [String] -> IO ()
 fetchRepos parentDir sshUrls = do
-  output <- newChan :: IO (IOChan)
+  output <- newChan :: IO IOChan
   outputer <- async (run output)
   results <- mapConcurrently (fetchRepo output parentDir) sshUrls
   writeChan output Nothing
