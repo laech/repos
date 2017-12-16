@@ -15,6 +15,7 @@ import GHC.Generics
 import Network.HTTP.Client
 import Network.HTTP.Client.TLS
 import Network.HTTP.Types.Header
+import Network.URI
 import Project.Exception
 
 newtype Repo = Repo
@@ -31,7 +32,8 @@ type Url = String
 getGitlabRepoSshUrls :: Token -> IO [String]
 getGitlabRepoSshUrls token = do
   let url =
-        "https://gitlab.com/api/v4/projects?owned=true&private_token=" ++ token
+        "https://gitlab.com/api/v4/projects?owned=true&private_token=" ++
+        escapeURIString isAllowedInURI token
   manager <- newManager tlsManagerSettings
   fmap sshUrl <$> getRepos url manager
 

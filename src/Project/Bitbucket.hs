@@ -16,6 +16,7 @@ import GHC.Generics
 import Network.HTTP.Client
 import Network.HTTP.Client.TLS
 import Network.HTTP.Types.URI
+import Network.URI
 import Project.Exception
 
 data Page = Page
@@ -44,7 +45,9 @@ type Pass = String
 
 getBitbucketRepoSshUrls :: String -> String -> IO [String]
 getBitbucketRepoSshUrls username password =
-  let url = "https://bitbucket.org/api/2.0/repositories/" ++ username
+  let url =
+        "https://bitbucket.org/api/2.0/repositories/" ++
+        escapeURIString isAllowedInURI username
       manager = newManager tlsManagerSettings
   in downloadSshUrls url username password =<< manager
 
