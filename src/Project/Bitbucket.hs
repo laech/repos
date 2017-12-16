@@ -9,6 +9,7 @@ import qualified Data.ByteString.Char8 as Char8
 import qualified Data.ByteString.Lazy.Char8 as LazyChar8
 
 import Control.Exception
+import Control.Monad.Loops
 import Data.Aeson
 import Data.List
 import GHC.Generics
@@ -49,15 +50,17 @@ getBitbucketRepoSshUrls username password =
 
 downloadSshUrls :: Url -> User -> Pass -> Manager -> IO [String]
 downloadSshUrls url user pass manager = do
-  pages <- downloadPages (Just url) user pass manager
+  pages <- downloadPages url user pass manager
   return $ concatMap extractSshUrls pages
 
-downloadPages :: Maybe Url -> User -> Pass -> Manager -> IO [Page]
-downloadPages Nothing _ _ _ = return []
-downloadPages (Just url) user pass manager = do
-  page <- downloadPage url user pass manager
-  pages <- downloadPages (next page) user pass manager
-  return $ page : pages
+downloadPages :: Url -> User -> Pass -> Manager -> IO [Page]
+downloadPages url user pass manager = unfoldrM download (Just url)
+  where
+    download :: Maybe Url -> IO (Maybe (Page, Maybe Url))
+    download Nothing = return Nothing
+    download (Just url) = do
+      page <- downloadPage url user pass manager
+      return $ Just (page, next page)
 
 basicAuthRequest :: Url -> User -> Pass -> IO Request
 basicAuthRequest url user pass =
