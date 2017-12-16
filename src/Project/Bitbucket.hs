@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass #-}
 
 module Project.Bitbucket
   ( getBitbucketRepoSshUrls
@@ -19,28 +20,20 @@ import Project.Exception
 data Page = Page
   { values :: [Repository]
   , next :: Maybe String
-  } deriving (Generic, Show)
+  } deriving (Generic, Show, FromJSON)
 
 newtype Repository = Repository
   { links :: Links
-  } deriving (Generic, Show)
+  } deriving (Generic, Show, FromJSON)
 
 newtype Links = Links
   { clone :: [Clone]
-  } deriving (Generic, Show)
+  } deriving (Generic, Show, FromJSON)
 
 data Clone = Clone
   { name :: String
   , href :: Url
-  } deriving (Generic, Show)
-
-instance FromJSON Page
-
-instance FromJSON Repository
-
-instance FromJSON Links
-
-instance FromJSON Clone
+  } deriving (Generic, Show, FromJSON)
 
 type Url = String
 

@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 
 module Project.Config
@@ -6,7 +7,7 @@ module Project.Config
   , loadConfig
   ) where
 
-import qualified Data.ByteString.Lazy as LazyByteString
+import Data.ByteString.Lazy as LazyByteString
 
 import Control.Exception
 import Data.Aeson
@@ -18,9 +19,7 @@ data Config = Config
   , bitbucketPassword :: String
   , gitlabToken :: String
   , directory :: FilePath
-  } deriving (Generic, Show)
-
-instance FromJSON Config
+  } deriving (Generic, Show, FromJSON)
 
 newtype ConfigException =
   ConfigException String
