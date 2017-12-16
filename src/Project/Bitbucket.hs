@@ -14,7 +14,6 @@ import Data.Aeson
 import Data.List
 import GHC.Generics
 import Network.HTTP.Client
-import Network.HTTP.Client.TLS
 import Network.HTTP.Types.URI
 import Network.URI
 import Project.Exception
@@ -43,21 +42,22 @@ type User = String
 
 type Pass = String
 
-getBitbucketRepoSshUrls :: String -> String -> IO [String]
-getBitbucketRepoSshUrls username password =
-  let url =
-        "https://bitbucket.org/api/2.0/repositories/" ++
-        escapeURIString isAllowedInURI username
-      manager = newManager tlsManagerSettings
-  in downloadSshUrls url username password =<< manager
+getBitbucketRepoSshUrls :: Manager -> String -> String -> IO [String]
+getBitbucketRepoSshUrls manager username password =
+  downloadSshUrls
+    manager
+    username
+    password
+    ("https://bitbucket.org/api/2.0/repositories/" ++
+     escapeURIString isAllowedInURI username)
 
-downloadSshUrls :: Url -> User -> Pass -> Manager -> IO [String]
-downloadSshUrls url user pass manager = do
-  pages <- downloadPages url user pass manager
+downloadSshUrls :: Manager -> User -> Pass -> Url -> IO [String]
+downloadSshUrls manager user pass url = do
+  pages <- downloadPages manager user pass url
   return $ concatMap extractSshUrls pages
 
-downloadPages :: Url -> User -> Pass -> Manager -> IO [Page]
-downloadPages url user pass manager = unfoldrM download (Just url)
+downloadPages :: Manager -> User -> Pass -> Url -> IO [Page]
+downloadPages manager user pass url = unfoldrM download (Just url)
   where
     download :: Maybe Url -> IO (Maybe (Page, Maybe Url))
     download Nothing = return Nothing

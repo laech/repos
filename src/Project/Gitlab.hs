@@ -13,7 +13,6 @@ import Data.CaseInsensitive
 import Data.Typeable
 import GHC.Generics
 import Network.HTTP.Client
-import Network.HTTP.Client.TLS
 import Network.HTTP.Types.Header
 import Network.URI
 import Project.Exception
@@ -29,23 +28,20 @@ type Token = String
 
 type Url = String
 
-getGitlabRepoSshUrls :: Token -> IO [String]
-getGitlabRepoSshUrls token = do
-  let url =
-        "https://gitlab.com/api/v4/projects?owned=true&private_token=" ++
-        escapeURIString isAllowedInURI token
-  manager <- newManager tlsManagerSettings
-  fmap sshUrl <$> getRepos url manager
+getGitlabRepoSshUrls :: Manager -> Token -> IO [String]
+getGitlabRepoSshUrls manager token =
+  fmap sshUrl <$>
+  getRepos
+    manager
+    ("https://gitlab.com/api/v4/projects?owned=true&private_token=" ++
+     escapeURIString isAllowedInURI token)
 
-getRepos :: Url -> Manager -> IO [Repo]
-getRepos url manager = do
+getRepos :: Manager -> Url -> IO [Repo]
+getRepos manager url = do
   request <- withHeaders <$> parseUrlThrow url
   response <- httpLbs request manager
-  case parseRepos . responseBody $ response of
+  case eitherDecode . responseBody $ response of
     Right repos -> return repos
     Left err -> throwIO $ JsonException err
   where
     withHeaders request = request {requestHeaders = [(hUserAgent, "None")]}
-
-parseRepos :: LazyChar8.ByteString -> Either String [Repo]
-parseRepos = eitherDecode
