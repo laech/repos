@@ -40,7 +40,8 @@ process path = do
 
 processSshUrls :: FilePath -> IO [String] -> IO ExitCode
 processSshUrls directory sshUrls = do
-  result <- try (sshUrls >>= fetchRepos directory) :: IO (Either ExitCode ())
+  result <-
+    try (sshUrls >>= fetchRepos directory) :: IO (Either SomeException ())
   case result of
-    Left e -> return e
+    Left e -> print e >> return (ExitFailure 1)
     _ -> return ExitSuccess
