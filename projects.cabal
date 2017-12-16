@@ -17,6 +17,7 @@ executable projects
                      , base
                      , bytestring
                      , case-insensitive
+                     , concurrent-output
                      , directory
                      , filepath
                      , http-client
