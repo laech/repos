@@ -17,12 +17,11 @@ import System.Exit
 import System.IO
 
 main :: IO ()
-main =
-  displayConsoleRegions $ do
-    args <- getArgs
-    case args of
-      [configFile] -> process configFile >>= exitWith
-      _ -> die "Usage: <this-program> <config-file>"
+main = do
+  args <- getArgs
+  case args of
+    [configFile] -> displayConsoleRegions $ process configFile >>= exitWith
+    _ -> die "Usage: <this-program> <config-file>"
 
 process :: FilePath -> IO ExitCode
 process path = do
@@ -32,22 +31,27 @@ process path = do
   results <-
     mapConcurrently
       (processSshUrls (directory config))
-      [ info "> Getting Gitlab repositories..." $
-        getGitlabRepoSshUrls manager (gitlabToken config)
-      , info "> Getting Bitbucket repositories..." $
-        getBitbucketRepoSshUrls
-          manager
-          (bitbucketUsername config)
-          (bitbucketPassword config)
+      [ getGitlabRepoSshUrls' manager config
+      , getBitbucketRepoSshUrls' manager config
       ]
   return $
     if all (== ExitSuccess) results
       then ExitSuccess
       else ExitFailure 1
 
-info :: String -> IO a -> IO a
-info msg io =
-  withConsoleRegion Linear $ \region -> setConsoleRegion region msg >> io
+getGitlabRepoSshUrls' manager config = do
+  info "> Getting Gitlab repositories..."
+  getGitlabRepoSshUrls manager (gitlabToken config)
+
+getBitbucketRepoSshUrls' manager config = do
+  info "> Getting Bitbucket repositories..."
+  getBitbucketRepoSshUrls
+    manager
+    (bitbucketUsername config)
+    (bitbucketPassword config)
+
+info :: String -> IO ()
+info msg = withConsoleRegion Linear $ \region -> setConsoleRegion region msg
 
 processSshUrls :: FilePath -> IO [String] -> IO ExitCode
 processSshUrls directory sshUrls = do

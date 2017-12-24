@@ -1,16 +1,15 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Project.Config
   ( Config(..)
-  , ConfigException
   , loadConfig
   ) where
 
-import Data.ByteString.Lazy as LazyByteString
-
 import Control.Exception
 import Data.Aeson
+import Data.ByteString.Lazy as Lazy
 import Data.Typeable
 import GHC.Generics
 
@@ -21,15 +20,7 @@ data Config = Config
   , directory :: FilePath
   } deriving (Generic, Show, FromJSON)
 
-newtype ConfigException =
-  ConfigException String
-  deriving (Typeable, Show)
-
-instance Exception ConfigException
-
 loadConfig :: FilePath -> IO Config
-loadConfig path =
-  LazyByteString.readFile path >>= \json ->
-    case eitherDecode json of
-      Left err -> throwIO (ConfigException err)
-      Right config -> return config
+loadConfig path = do
+  content <- Lazy.readFile path
+  either fail return (eitherDecode content)

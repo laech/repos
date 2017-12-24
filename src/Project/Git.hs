@@ -1,3 +1,5 @@
+{-# LANGUAGE LambdaCase #-}
+
 module Project.Git
   ( fetchRepo
   ) where
@@ -14,9 +16,9 @@ execute :: [CreateProcess] -> IO (ExitCode, String, String)
 execute [x] = readCreateProcessWithExitCode x ""
 execute (x:xs) = do
   result@(exitCode, _, _) <- execute [x]
-  case exitCode of
-    ExitSuccess -> execute xs
-    ExitFailure _ -> return result
+  if exitCode == ExitSuccess
+    then execute xs
+    else return result
 
 gitFetch :: FilePath -> CreateProcess
 gitFetch directory = (shell "git fetch --all --quiet") {cwd = Just directory}
@@ -31,7 +33,6 @@ gitClone sshUrl parentDir =
 fetchRepo :: FilePath -> String -> IO (ExitCode, String, String)
 fetchRepo parentDir sshUrl = do
   let projectDir = parentDir </> getProjectNameFromSshUrl sshUrl
-  exists <- doesDirectoryExist projectDir
-  if exists
-    then execute [gitFetch projectDir, gitMerge projectDir]
-    else readCreateProcessWithExitCode (gitClone sshUrl parentDir) ""
+  doesDirectoryExist projectDir >>= \case
+    True -> execute [gitFetch projectDir, gitMerge projectDir]
+    _ -> readCreateProcessWithExitCode (gitClone sshUrl parentDir) ""

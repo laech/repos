@@ -16,7 +16,6 @@ import GHC.Generics
 import Network.HTTP.Client
 import Network.HTTP.Types.URI
 import Network.URI
-import Project.Exception
 
 data Page = Page
   { values :: [Repository]
@@ -73,9 +72,7 @@ downloadPage :: Url -> User -> Pass -> Manager -> IO Page
 downloadPage url user pass manager = do
   request <- basicAuthRequest url user pass
   response <- httpLbs request manager
-  case eitherDecode . responseBody $ response of
-    Left err -> throwIO $ JsonException err
-    Right page -> return page
+  either fail return (eitherDecode $ responseBody response)
 
 extractSshUrls :: Page -> [String]
 extractSshUrls page = sshUrls

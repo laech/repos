@@ -15,7 +15,6 @@ import GHC.Generics
 import Network.HTTP.Client
 import Network.HTTP.Types.Header
 import Network.URI
-import Project.Exception
 
 newtype Repo = Repo
   { sshUrl :: String
@@ -40,8 +39,6 @@ getRepos :: Manager -> Url -> IO [Repo]
 getRepos manager url = do
   request <- withHeaders <$> parseUrlThrow url
   response <- httpLbs request manager
-  case eitherDecode . responseBody $ response of
-    Right repos -> return repos
-    Left err -> throwIO $ JsonException err
+  either fail return (eitherDecode . responseBody $ response)
   where
     withHeaders request = request {requestHeaders = [(hUserAgent, "None")]}
