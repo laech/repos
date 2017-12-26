@@ -3,7 +3,6 @@ module Main where
 import Control.Concurrent.Async
 import Control.Exception
 import Control.Monad
-import Data.Either
 import Data.List
 import Network.HTTP.Client.TLS
 import Project.Bitbucket
@@ -14,7 +13,6 @@ import System.Console.Concurrent
 import System.Console.Regions
 import System.Environment
 import System.Exit
-import System.IO
 
 main :: IO ()
 main = do

@@ -7,10 +7,7 @@ module Project.Gitlab
 
 import qualified Data.ByteString.Lazy.Char8 as LazyChar8
 
-import Control.Exception
 import Data.Aeson
-import Data.CaseInsensitive
-import Data.Typeable
 import GHC.Generics
 import Network.HTTP.Client
 import Network.HTTP.Types.Header

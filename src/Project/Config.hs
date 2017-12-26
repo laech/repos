@@ -6,10 +6,8 @@ module Project.Config
   , loadConfig
   ) where
 
-import Control.Exception
 import Data.Aeson
 import Data.ByteString.Lazy as Lazy
-import Data.Typeable
 import GHC.Generics
 
 data Config = Config

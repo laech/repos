@@ -7,14 +7,10 @@ module Project.Bitbucket
 import qualified Data.ByteString.Char8 as Char8
 import qualified Data.HashMap.Strict as HM
 
-import Control.Exception
-import Control.Monad
 import Control.Monad.Loops
 import Data.Aeson
 import Data.Aeson.Types
-import Data.List
 import Network.HTTP.Client
-import Network.HTTP.Types.URI
 import Network.URI
 
 type Page = ([String], Maybe Url)
