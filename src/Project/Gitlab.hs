@@ -5,12 +5,9 @@ module Project.Gitlab
   ( getGitlabRepoSshUrls
   ) where
 
-import qualified Data.ByteString.Lazy.Char8 as LazyChar8
-
 import Data.Aeson
 import GHC.Generics
 import Network.HTTP.Client
-import Network.HTTP.Types.Header
 import Network.URI
 
 newtype Repo = Repo
@@ -34,8 +31,6 @@ getGitlabRepoSshUrls manager token =
 
 getRepos :: Manager -> Url -> IO [Repo]
 getRepos manager url = do
-  request <- withHeaders <$> parseUrlThrow url
+  request <- parseUrlThrow url
   response <- httpLbs request manager
   either fail return (eitherDecode . responseBody $ response)
-  where
-    withHeaders request = request {requestHeaders = [(hUserAgent, "None")]}
