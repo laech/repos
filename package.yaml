@@ -3,15 +3,16 @@ version:             0.1.0.0
 
 dependencies:
 - aeson
+- ansi-terminal
 - async
 - base
 - bytestring
-- concurrent-output
 - directory
 - filepath
 - http-client
 - http-client-tls
 - http-types
+- hslogger
 - network-uri
 - process
 - unordered-containers

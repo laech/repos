@@ -12,6 +12,7 @@ import Data.Aeson.Types
 import Network.HTTP.Client
 import Network.URI
 import System.IO.Unsafe
+import System.Log.Logger
 
 getBitbucketRepoSshUrls :: Manager -> String -> String -> IO [String]
 getBitbucketRepoSshUrls manager user pass = repos manager user pass url
@@ -21,8 +22,10 @@ getBitbucketRepoSshUrls manager user pass = repos manager user pass url
 
 repos :: Manager -> String -> String -> String -> IO [String]
 repos manager user pass url = do
+  debugM "Bitbucket" (". " ++ url)
   request <- basicAuthRequest url user pass
   response <- httpLbs request manager
+  infoM "Bitbucket" ("✓ " ++ url)
   (urls, next) <- either fail return (parse response)
   (urls ++) <$> maybe (pure []) nextRepos next
   where

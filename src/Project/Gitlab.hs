@@ -11,6 +11,7 @@ import qualified Data.ByteString.Char8 as Char8
 import Data.Aeson
 import GHC.Generics
 import Network.HTTP.Client
+import System.Log.Logger
 
 newtype Repo = Repo
   { sshUrl :: String
@@ -25,8 +26,10 @@ getGitlabRepoSshUrls manager token = map sshUrl <$> repos manager token
 repos :: Manager -> String -> IO [Repo]
 repos manager token = do
   let url = "https://gitlab.com/api/v4/projects?owned=true"
+  debugM "Gitlab" (". " ++ url)
   request <- withToken token <$> parseUrlThrow url
   response <- httpLbs request manager
+  infoM "Gitlab" ("✓ " ++ url)
   either fail return (eitherDecode . responseBody $ response)
 
 withToken :: String -> Request -> Request
