@@ -3,4 +3,5 @@ config.json
 *~
 #*
 *.iml
+*.cabal
 cabal.config

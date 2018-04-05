@@ -1,30 +1,37 @@
-name:                projects
-version:             0.1.0.0
-build-type:          Simple
-cabal-version:       >=1.10
+-- This file has been generated from package.yaml by hpack version 0.20.0.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: c3786476bde6766dd545147536fbefb03e016fde2dc23235685c8000311fb057
+
+name:           projects
+version:        0.1.0.0
+build-type:     Simple
+cabal-version:  >= 1.10
 
 executable projects
-  hs-source-dirs:      src
-  main-is:             Project/Main.hs
-  other-modules:       Project.Bitbucket
-                     , Project.Config
-                     , Project.Git
-                     , Project.Gitlab
-  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
-  build-depends:       aeson
-                     , async
-                     , base
-                     , bytestring
-                     , case-insensitive
-                     , concurrent-output
-                     , directory
-                     , filepath
-                     , http-client
-                     , http-client-tls
-                     , http-types
-                     , monad-loops
-                     , network-uri
-                     , process
-                     , text
-                     , unordered-containers
-  default-language:    Haskell2010
+  main-is: Project/Main.hs
+  hs-source-dirs:
+      src
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      aeson
+    , async
+    , base
+    , bytestring
+    , concurrent-output
+    , directory
+    , filepath
+    , http-client
+    , http-client-tls
+    , http-types
+    , network-uri
+    , process
+    , unordered-containers
+  other-modules:
+      Project.Bitbucket
+      Project.Config
+      Project.Git
+      Project.Gitlab
+      Paths_projects
+  default-language: Haskell2010
