@@ -7,47 +7,33 @@ module Project.Bitbucket
 import qualified Data.ByteString.Char8 as Char8
 import qualified Data.HashMap.Strict as HM
 
-import Control.Monad.Loops
 import Data.Aeson
 import Data.Aeson.Types
 import Network.HTTP.Client
 import Network.URI
-
-type Page = ([String], Maybe Url)
-
-type Url = String
-
-type User = String
-
-type Pass = String
+import System.IO.Unsafe
 
 getBitbucketRepoSshUrls :: Manager -> String -> String -> IO [String]
-getBitbucketRepoSshUrls manager username password =
-  downloadSshUrls
-    manager
-    username
-    password
-    ("https://bitbucket.org/api/2.0/repositories/" ++
-     escapeURIString isAllowedInURI username)
-
-downloadSshUrls :: Manager -> User -> Pass -> Url -> IO [String]
-downloadSshUrls manager user pass url = concat <$> unfoldrM download (Just url)
+getBitbucketRepoSshUrls manager user pass = repos manager user pass url
   where
-    download :: Maybe Url -> IO (Maybe Page)
-    download Nothing = return Nothing
-    download (Just url) = Just <$> downloadPage url user pass manager
+    url = "https://bitbucket.org/api/2.0/repositories/" ++ path
+    path = escapeURIString isAllowedInURI user
 
-basicAuthRequest :: Url -> User -> Pass -> IO Request
+repos :: Manager -> String -> String -> String -> IO [String]
+repos manager user pass url = do
+  request <- basicAuthRequest url user pass
+  response <- httpLbs request manager
+  (urls, next) <- either fail return (parse response)
+  (urls ++) <$> maybe (pure []) nextRepos next
+  where
+    parse response = eitherDecode (responseBody response) >>= parseEither page
+    nextRepos = unsafeInterleaveIO . repos manager user pass
+
+basicAuthRequest :: String -> String -> String -> IO Request
 basicAuthRequest url user pass =
   applyBasicAuth (Char8.pack user) (Char8.pack pass) <$> parseUrlThrow url
 
-downloadPage :: Url -> User -> Pass -> Manager -> IO Page
-downloadPage url user pass manager = do
-  request <- basicAuthRequest url user pass
-  response <- httpLbs request manager
-  either fail return (eitherDecode (responseBody response) >>= parseEither page)
-
-page :: Value -> Parser Page
+page :: Value -> Parser ([String], Maybe String)
 page =
   withObject "" $ \v -> do
     next <- v .:? "next"

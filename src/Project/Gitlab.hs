@@ -5,10 +5,12 @@ module Project.Gitlab
   ( getGitlabRepoSshUrls
   ) where
 
+import qualified Data.Aeson.Types as Json
+import qualified Data.ByteString.Char8 as Char8
+
 import Data.Aeson
 import GHC.Generics
 import Network.HTTP.Client
-import Network.URI
 
 newtype Repo = Repo
   { sshUrl :: String
@@ -17,20 +19,16 @@ newtype Repo = Repo
 instance FromJSON Repo where
   parseJSON = withObject "Repo" $ \v -> Repo <$> v .: "ssh_url_to_repo"
 
-type Token = String
+getGitlabRepoSshUrls :: Manager -> String -> IO [String]
+getGitlabRepoSshUrls manager token = map sshUrl <$> repos manager token
 
-type Url = String
-
-getGitlabRepoSshUrls :: Manager -> Token -> IO [String]
-getGitlabRepoSshUrls manager token =
-  fmap sshUrl <$>
-  getRepos
-    manager
-    ("https://gitlab.com/api/v4/projects?owned=true&private_token=" ++
-     escapeURIString isAllowedInURI token)
-
-getRepos :: Manager -> Url -> IO [Repo]
-getRepos manager url = do
-  request <- parseUrlThrow url
+repos :: Manager -> String -> IO [Repo]
+repos manager token = do
+  let url = "https://gitlab.com/api/v4/projects?owned=true"
+  request <- withToken token <$> parseUrlThrow url
   response <- httpLbs request manager
   either fail return (eitherDecode . responseBody $ response)
+
+withToken :: String -> Request -> Request
+withToken token request =
+  request {requestHeaders = [("Private-Token", Char8.pack token)]}
