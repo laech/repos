@@ -4,11 +4,11 @@ module Project.Bitbucket
   ( getBitbucketRepoSshUrls
   ) where
 
-import qualified Data.ByteString.Char8 as Char8
-import qualified Data.HashMap.Strict as HM
+import qualified Data.ByteString.Char8 as C
 
 import Data.Aeson
 import Data.Aeson.Types
+import Data.HashMap.Strict ((!))
 import Network.HTTP.Client
 import Network.URI
 import Project.Config
@@ -24,19 +24,24 @@ getBitbucketRepoSshUrls manager config =
 
 repos :: Manager -> String -> String -> String -> IO [String]
 repos manager user pass url = do
-  debugM "Bitbucket" (". " ++ url)
+  content <-
+    debugM "Bitbucket" (". " ++ url) *> --
+    readContent manager url user pass <* --
+    infoM "Bitbucket" ("✓ " ++ url)
+  (urls, nextUrl) <- either fail pure (parse content)
+  (urls ++) <$> maybe (pure []) next nextUrl
+  where
+    parse content = eitherDecode content >>= parseEither page
+    next = unsafeInterleaveIO . repos manager user pass
+
+readContent manager url user pass = do
   request <- basicAuthRequest url user pass
   response <- httpLbs request manager
-  infoM "Bitbucket" ("✓ " ++ url)
-  (urls, next) <- either fail return (parse response)
-  (urls ++) <$> maybe (pure []) nextRepos next
-  where
-    parse response = eitherDecode (responseBody response) >>= parseEither page
-    nextRepos = unsafeInterleaveIO . repos manager user pass
+  pure $ responseBody response
 
 basicAuthRequest :: String -> String -> String -> IO Request
 basicAuthRequest url user pass =
-  applyBasicAuth (Char8.pack user) (Char8.pack pass) <$> parseUrlThrow url
+  applyBasicAuth (C.pack user) (C.pack pass) <$> parseUrlThrow url
 
 page :: Value -> Parser ([String], Maybe String)
 page =
@@ -44,8 +49,8 @@ page =
     next <- v .:? "next"
     repos <- v .: "values" :: Parser [Object]
     links <- mapM (.: "links") repos
-    clones <- filter isSsh . concat <$> mapM (.: "clone") links
-    sshUrls <- mapM (.: "href") clones
-    return (sshUrls, next)
+    clones <- concat <$> mapM (.: "clone") links
+    sshUrls <- mapM (.: "href") $ filter isSsh clones
+    pure (sshUrls, next)
   where
-    isSsh clone = HM.lookup "name" clone == Just "ssh"
+    isSsh clone = clone ! "name" == "ssh"
