@@ -11,49 +11,43 @@ import System.FilePath
 import System.Log.Logger
 import System.Process
 
-getProjectNameFromSshUrl :: String -> String
-getProjectNameFromSshUrl = dropExtension . takeFileName
+getProjectName = dropExtension . takeFileName
 
 execute :: [CreateProcess] -> IO (ExitCode, String, String)
 execute [x] = readCreateProcessWithExitCode x ""
 execute (x:xs) = do
-  result@(exitCode, _, _) <- execute [x]
-  if exitCode == ExitSuccess
+  result@(code, _, _) <- execute [x]
+  if code == ExitSuccess
     then execute xs
-    else return result
+    else pure result
 
-gitFetch :: FilePath -> CreateProcess
-gitFetch directory = (shell "git fetch --all --quiet") {cwd = Just directory}
+fetch :: FilePath -> CreateProcess
+fetch dir = (shell "git fetch --all --quiet") {cwd = Just dir}
 
-gitMerge :: FilePath -> CreateProcess
-gitMerge directory = (shell "git merge FETCH_HEAD") {cwd = Just directory}
+merge :: FilePath -> CreateProcess
+merge dir = (shell "git merge FETCH_HEAD") {cwd = Just dir}
 
-gitClone :: String -> FilePath -> CreateProcess
-gitClone sshUrl parentDir =
-  (shell $ "git clone --quiet " ++ sshUrl) {cwd = Just parentDir}
+clone :: String -> FilePath -> CreateProcess
+clone url parent = (shell $ "git clone --quiet " ++ url) {cwd = Just parent}
 
 fetchRepo :: FilePath -> String -> IO ExitCode
-fetchRepo parentDir sshUrl = do
-  debugM "Git" (". " ++ sshUrl)
-  let projectDir = parentDir </> getProjectNameFromSshUrl sshUrl
-  result@(exitCode, _, _) <-
-    doesDirectoryExist projectDir >>= \case
-      True -> execute [gitFetch projectDir, gitMerge projectDir]
-      _ -> readCreateProcessWithExitCode (gitClone sshUrl parentDir) ""
-  infoM "Git" $ formatResult sshUrl result
-  pure exitCode
+fetchRepo parent url = do
+  debugM "Git" (". " ++ url)
+  let dst = parent </> getProjectName url
+  exists <- doesDirectoryExist dst
+  result@(code, _, _) <-
+    if exists
+      then execute [fetch dst, merge dst]
+      else readCreateProcessWithExitCode (clone url parent) ""
+  infoM "Git" $ format url result
+  pure code
 
-getStatusSymbol exitCode =
-  if exitCode == ExitSuccess
-    then "✓"
-    else "✗"
-
-formatResult :: String -> (ExitCode, String, String) -> String
-formatResult sshUrl (exitCode, out, err) =
-  status ++ " " ++ sshUrl ++ message exitCode
+format :: String -> (ExitCode, String, String) -> String
+format url (code, out, err) =
+  let (symbol, message) = status code
+   in symbol ++ " " ++ url ++ message
   where
-    status = getStatusSymbol exitCode
-    message exitCode =
-      if exitCode == ExitSuccess
-        then ""
-        else "\n" ++ intercalate "\n" (filter (not . null) [out, err])
+    status code =
+      if code == ExitSuccess
+        then ("✓", "")
+        else ("✗", intercalate "\n" [out, err])
