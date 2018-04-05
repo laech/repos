@@ -1,6 +1,7 @@
 module Main where
 
 import Control.Concurrent.Async
+import Network.HTTP.Client
 import Network.HTTP.Client.TLS
 import Project.Bitbucket
 import Project.Config
@@ -26,10 +27,9 @@ process path = do
   manager <- newTlsManager
   allOk <$> mapConcurrently (>>= fetchRepos config) (getSshUrls manager config)
   where
-    getSshUrls manager config =
-      map
-        (\f -> f manager config)
-        [getGitlabRepoSshUrls, getBitbucketRepoSshUrls]
+    getSshUrls :: Manager -> Config -> [IO [String]]
+    getSshUrls manager config = map (\f -> f manager config) getters
+    getters = [getGitlabRepoSshUrls, getBitbucketRepoSshUrls]
 
 fetchRepos :: Config -> [String] -> IO ExitCode
 fetchRepos config sshUrls =
