@@ -24,10 +24,7 @@ getBitbucketRepoSshUrls manager config =
 
 repos :: Manager -> String -> String -> String -> IO [String]
 repos manager user pass url = do
-  content <-
-    debugM "Bitbucket" (". " ++ url) *> --
-    readContent manager url user pass <* --
-    infoM "Bitbucket" ("✓ " ++ url)
+  content <- readContent manager url user pass
   (urls, nextUrl) <- either fail pure (parse content)
   (urls ++) <$> maybe (pure []) next nextUrl
   where
@@ -35,8 +32,10 @@ repos manager user pass url = do
     next = unsafeInterleaveIO . repos manager user pass
 
 readContent manager url user pass = do
+  debugM "Bitbucket" (". " ++ url)
   request <- basicAuthRequest url user pass
   response <- httpLbs request manager
+  infoM "Bitbucket" ("✓ " ++ url)
   pure $ responseBody response
 
 basicAuthRequest :: String -> String -> String -> IO Request
