@@ -11,14 +11,16 @@ import Data.Aeson
 import Data.Aeson.Types
 import Network.HTTP.Client
 import Network.URI
+import Project.Config
 import System.IO.Unsafe
 import System.Log.Logger
 
-getBitbucketRepoSshUrls :: Manager -> String -> String -> IO [String]
-getBitbucketRepoSshUrls manager user pass = repos manager user pass url
+getBitbucketRepoSshUrls :: Manager -> Config -> IO [String]
+getBitbucketRepoSshUrls manager config =
+  repos manager (bitbucketUsername config) (bitbucketPassword config) url
   where
     url = "https://bitbucket.org/api/2.0/repositories/" ++ path
-    path = escapeURIString isAllowedInURI user
+    path = escapeURIString isAllowedInURI (bitbucketUsername config)
 
 repos :: Manager -> String -> String -> String -> IO [String]
 repos manager user pass url = do

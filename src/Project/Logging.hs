@@ -11,18 +11,18 @@ import System.Log.Logger
 
 setupLogger :: IO ()
 setupLogger = do
-  handler <- (flip setFormatter) ansiFormatter <$> streamHandler stdout DEBUG
+  handler <- flip setFormatter ansiFormatter <$> streamHandler stdout DEBUG
   updateGlobalLogger rootLoggerName (setLevel DEBUG . setHandlers [handler])
 
 ansiFormatter :: LogFormatter a
 ansiFormatter _ (priority, message) _ =
   pure $
   case priority of
-    DEBUG -> setColor Black message
-    INFO -> setColor Green message
-    ERROR -> setColor Red message
+    DEBUG -> setColor Vivid Black message
+    INFO -> setColor Dull Blue message
+    ERROR -> setColor Dull Red message
     _ -> message
   where
-    setColor color message =
-      setSGRCode [SetColor Foreground Vivid color] ++
+    setColor intensity color message =
+      setSGRCode [SetColor Foreground intensity color] ++
       message ++ setSGRCode [Reset]

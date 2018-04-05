@@ -11,6 +11,7 @@ import qualified Data.ByteString.Char8 as Char8
 import Data.Aeson
 import GHC.Generics
 import Network.HTTP.Client
+import Project.Config
 import System.Log.Logger
 
 newtype Repo = Repo
@@ -20,8 +21,9 @@ newtype Repo = Repo
 instance FromJSON Repo where
   parseJSON = withObject "Repo" $ \v -> Repo <$> v .: "ssh_url_to_repo"
 
-getGitlabRepoSshUrls :: Manager -> String -> IO [String]
-getGitlabRepoSshUrls manager token = map sshUrl <$> repos manager token
+getGitlabRepoSshUrls :: Manager -> Config -> IO [String]
+getGitlabRepoSshUrls manager config =
+  map sshUrl <$> repos manager (gitlabToken config)
 
 repos :: Manager -> String -> IO [Repo]
 repos manager token = do
