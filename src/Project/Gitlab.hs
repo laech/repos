@@ -11,6 +11,7 @@ import Data.Aeson
 import GHC.Generics
 import Network.HTTP.Client
 import Project.Config
+import Pipes
 import System.Log.Logger
 
 newtype Repo = Repo
@@ -20,15 +21,16 @@ newtype Repo = Repo
 instance FromJSON Repo where
   parseJSON = withObject "Repo" $ \v -> Repo <$> v .: "ssh_url_to_repo"
 
-getGitlabRepoSshUrls :: Manager -> Config -> IO [String]
+getGitlabRepoSshUrls :: Manager -> Config -> Producer String IO ()
 getGitlabRepoSshUrls manager config =
-  map sshUrl <$> repos manager (gitlabToken config)
+  for (repos manager $ gitlabToken config) $ yield . sshUrl
 
-repos :: Manager -> String -> IO [Repo]
+repos :: Manager -> String -> Producer Repo IO ()
 repos manager token = do
   let url = "https://gitlab.com/api/v4/projects?owned=true"
-  content <- readContent manager url token
-  either fail pure (eitherDecode content)
+  content <- lift $ readContent manager url token
+  items <- either fail pure (eitherDecode content :: Either String [Repo])
+  for (each items) yield
 
 readContent manager url token = do
   debugM "Gitlab" (". " ++ url)

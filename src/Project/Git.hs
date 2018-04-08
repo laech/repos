@@ -1,5 +1,3 @@
-{-# LANGUAGE LambdaCase #-}
-
 module Project.Git
   ( fetchRepo
   ) where

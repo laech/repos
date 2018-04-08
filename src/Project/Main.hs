@@ -1,5 +1,7 @@
 module Main where
 
+import qualified Pipes.Prelude as P
+
 import Control.Concurrent.Async
 import Network.HTTP.Client
 import Network.HTTP.Client.TLS
@@ -8,6 +10,7 @@ import Project.Config
 import Project.Git
 import Project.Gitlab
 import Project.Logging
+import Pipes
 import System.Environment
 import System.Exit
 import System.Log.Logger
@@ -25,15 +28,18 @@ process path = do
   config <- loadConfig path
   infoM "Main" ("> " ++ directory config)
   manager <- newTlsManager
-  allOk <$> mapConcurrently (>>= fetchRepos config) (getSshUrls manager config)
+  allOk <$> mapConcurrently (fetchRepos config) (getSshUrls manager config)
   where
-    getSshUrls :: Manager -> Config -> [IO [String]]
+    getSshUrls :: Manager -> Config -> [Producer String IO ()]
     getSshUrls manager config = map (\f -> f manager config) getters
     getters = [getGitlabRepoSshUrls, getBitbucketRepoSshUrls]
 
-fetchRepos :: Config -> [String] -> IO ExitCode
-fetchRepos config sshUrls =
-  allOk <$> mapConcurrently (fetchRepo $ directory config) sshUrls
+fetchRepos :: Config -> Producer String IO () -> IO ExitCode
+fetchRepos config sshUrls = do
+  tasks <- P.toListM $ sshUrls >-> P.mapM asyncFetchRepo
+  allOk <$> mapM wait tasks
+  where
+    asyncFetchRepo = async . fetchRepo (directory config)
 
 allOk :: [ExitCode] -> ExitCode
 allOk = foldl max ExitSuccess

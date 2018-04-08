@@ -11,25 +11,26 @@ import Data.Aeson.Types
 import Data.HashMap.Strict ((!))
 import Network.HTTP.Client
 import Network.URI
+import Pipes
 import Project.Config
-import System.IO.Unsafe
 import System.Log.Logger
 
-getBitbucketRepoSshUrls :: Manager -> Config -> IO [String]
+getBitbucketRepoSshUrls :: Manager -> Config -> Producer String IO ()
 getBitbucketRepoSshUrls manager config =
   repos manager (bitbucketUsername config) (bitbucketPassword config) url
   where
     url = "https://bitbucket.org/api/2.0/repositories/" ++ path
     path = escapeURIString isAllowedInURI (bitbucketUsername config)
 
-repos :: Manager -> String -> String -> String -> IO [String]
+repos :: Manager -> String -> String -> String -> Producer String IO ()
 repos manager user pass url = do
-  content <- readContent manager url user pass
+  content <- lift $ readContent manager url user pass
   (urls, nextUrl) <- either fail pure (parse content)
-  (urls ++) <$> maybe (pure []) next nextUrl
+  for (each urls) yield
+  maybe (pure ()) next nextUrl
   where
     parse content = eitherDecode content >>= parseEither page
-    next = unsafeInterleaveIO . repos manager user pass
+    next = repos manager user pass
 
 readContent manager url user pass = do
   debugM "Bitbucket" (". " ++ url)
