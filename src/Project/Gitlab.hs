@@ -6,12 +6,17 @@ module Project.Gitlab
   ) where
 
 import qualified Data.ByteString.Char8 as C
+import qualified Data.ByteString as B
+import qualified Pipes.Aeson as PA
 
+import Control.Monad
 import Data.Aeson
+import Data.ByteString (ByteString)
 import GHC.Generics
 import Network.HTTP.Client
 import Project.Config
 import Pipes
+import Pipes.Parse
 import System.Log.Logger
 
 newtype Repo = Repo
@@ -28,17 +33,38 @@ getGitlabRepoSshUrls manager config =
 repos :: Manager -> String -> Producer Repo IO ()
 repos manager token = do
   let url = "https://gitlab.com/api/v4/projects?owned=true"
-  content <- lift $ readContent manager url token
-  items <- either fail pure (eitherDecode content :: Either String [Repo])
-  for (each items) yield
+  repos' <- lift $ readContent manager url token
+  for (each repos') yield
 
+readContent :: Manager -> String -> String -> IO [Repo]
 readContent manager url token = do
   debugM "Gitlab" (". " ++ url)
   request <- withToken token <$> parseUrlThrow url
-  response <- httpLbs request manager
-  infoM "Gitlab" ("✓ " ++ url)
-  pure $ responseBody response
+  withHTTP request manager $ \response -> do
+    Just (Right items) <- evalStateT PA.decode (responseBody response)
+    infoM "Gitlab" ("✓ " ++ url)
+    pure items
 
 withToken :: String -> Request -> Request
 withToken token request =
   request {requestHeaders = [("Private-Token", C.pack token)]}
+
+-- TODO remove after upgrading to a new stack LTS with pipes-http
+withHTTP
+    :: Request
+    -> Manager
+    -> (Response (Producer ByteString IO ()) -> IO a)
+    -> IO a
+withHTTP r m k = withResponse r m k'
+  where
+    k' resp = do
+        let p = (from . brRead . responseBody) resp
+        k (resp { responseBody = p})
+    from :: IO ByteString -> Producer ByteString IO ()
+    from io = go
+      where
+        go = do
+          bs <- lift io
+          unless (B.null bs) $ do
+            yield bs
+            go
