@@ -24,27 +24,30 @@ getBitbucketRepoSshUrls manager config =
 
 repos :: Manager -> String -> String -> String -> Producer String IO ()
 repos manager user pass url = do
-  content <- lift $ readContent manager url user pass
-  (urls, nextUrl) <- either fail pure (parse content)
+  result <- lift $ readPage manager url user pass
+  (urls, nextUrl) <- either fail pure result
   for (each urls) yield
   maybe (pure ()) next nextUrl
   where
-    parse content = eitherDecode content >>= parseEither page
     next = repos manager user pass
 
-readContent manager url user pass = do
+type Page = ([String], Maybe String)
+
+readPage :: Manager -> String -> String -> String -> IO (Either String Page)
+readPage manager url user pass = do
   debugM "Bitbucket" (". " ++ url)
   request <- basicAuthRequest url user pass
-  response <- httpLbs request manager
-  infoM "Bitbucket" ("✓ " ++ url)
-  pure $ responseBody response
+  withResponse request manager (fmap parse . responseBody) <*
+    infoM "Bitbucket" ("✓ " ++ url)
+  where
+    parse content = eitherDecodeStrict content >>= parseEither parsePage
 
 basicAuthRequest :: String -> String -> String -> IO Request
 basicAuthRequest url user pass =
   applyBasicAuth (C.pack user) (C.pack pass) <$> parseUrlThrow url
 
-page :: Value -> Parser ([String], Maybe String)
-page =
+parsePage :: Value -> Parser ([String], Maybe String)
+parsePage =
   withObject "" $ \v -> do
     next <- v .:? "next"
     repos <- v .: "values" :: Parser [Object]
