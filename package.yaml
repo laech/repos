@@ -15,6 +15,9 @@ dependencies:
 - hslogger
 - network-uri
 - pipes
+- pipes-aeson
+- pipes-parse
+- pipes-http
 - process
 - unordered-containers
 
