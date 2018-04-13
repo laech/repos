@@ -1,6 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Project.Gitlab
@@ -19,9 +18,8 @@ import Data.Typeable
 import GHC.Generics
 import Network.HTTP.Client
 import Pipes
-import Pipes.HTTP
-import Pipes.Parse
 import Project.Config
+import Project.HTTP
 import System.Log.Logger
 
 newtype Repo = Repo
@@ -49,24 +47,13 @@ getRepos
   :: (MonadIO m, MonadThrow m)
   => Manager -> String -> String -> Producer Repo m ()
 getRepos man url token = do
-  liftIO $ debugM "Gitlab" (". " ++ url)
   req <- withToken token <$> parseUrlThrow url
-  repos :: [Repo] <- getJSON req man
-  liftIO $ infoM "Gitlab" ("✓ " ++ url)
+  repos :: [Repo] <-
+    liftIO $
+    debugM "Gitlab" (". " ++ url) >> --
+    getJSON req man GitlabException <* --
+    infoM "Gitlab" ("✓ " ++ url)
   for (each repos) yield
-
-getJSON
-  :: (MonadIO m, FromJSON a)
-  => Request -> Manager -> m a
-getJSON req man =
-  liftIO $
-  withHTTP req man $ \resp ->
-    evalStateT PA.decode (responseBody resp) >>= \case
-      Nothing -> failed "end of input"
-      Just (Left e) -> failed (show e)
-      Just (Right r) -> pure r
-  where
-    failed = throwIO . GitlabException
 
 withToken :: String -> Request -> Request
 withToken token request =
