@@ -1,4 +1,6 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Project.Gitlab
@@ -10,7 +12,8 @@ import qualified Pipes.Aeson as PA
 import qualified Pipes.Prelude as P
 
 import Control.Exception
-import Control.Monad
+import Control.Monad.Catch
+import Control.Monad.IO.Class
 import Data.Aeson
 import Data.Typeable
 import GHC.Generics
@@ -34,26 +37,34 @@ newtype GitlabException =
 
 instance Exception GitlabException
 
-getGitlabRepoSshUrls :: Manager -> Config -> Producer String IO ()
-getGitlabRepoSshUrls manager config =
-  getRepos manager (gitlabToken config) >-> P.map sshUrl
+getGitlabRepoSshUrls
+  :: (MonadIO m, MonadThrow m)
+  => Manager -> Config -> Producer String m ()
+getGitlabRepoSshUrls manager config = repos >-> P.map sshUrl
+  where
+    url = "https://gitlab.com/api/v4/projects?owned=true"
+    repos = getRepos manager url (gitlabToken config)
 
-getRepos :: Manager -> String -> Producer Repo IO ()
-getRepos manager token = do
-  let url = "https://gitlab.com/api/v4/projects?owned=true"
-  lift $ debugM "Gitlab" (". " ++ url)
-  request <- withToken token <$> parseUrlThrow url
-  repos <- lift $ readContent manager url token
-  lift $ infoM "Gitlab" ("✓ " ++ url)
+getRepos
+  :: (MonadIO m, MonadThrow m)
+  => Manager -> String -> String -> Producer Repo m ()
+getRepos man url token = do
+  liftIO $ debugM "Gitlab" (". " ++ url)
+  req <- withToken token <$> parseUrlThrow url
+  repos :: [Repo] <- getJSON req man
+  liftIO $ infoM "Gitlab" ("✓ " ++ url)
   for (each repos) yield
 
-readContent :: Manager -> String -> String -> IO [Repo]
-readContent manager url token = do
-  request <- withToken token <$> parseUrlThrow url
-  withHTTP request manager $ \response ->
-    evalStateT PA.decode (responseBody response) >>=
-    maybe (failed "end of input") pure >>=
-    either (failed . show) pure
+getJSON
+  :: (MonadIO m, FromJSON a)
+  => Request -> Manager -> m a
+getJSON req man =
+  liftIO $
+  withHTTP req man $ \resp ->
+    evalStateT PA.decode (responseBody resp) >>= \case
+      Nothing -> failed "end of input"
+      Just (Left e) -> failed (show e)
+      Just (Right r) -> pure r
   where
     failed = throwIO . GitlabException
 
