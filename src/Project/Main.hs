@@ -1,40 +1,44 @@
+{-# LANGUAGE FlexibleContexts #-}
+
 module Main where
 
 import qualified Pipes.Prelude as P
 
-import Control.Concurrent.Async
+import Control.Concurrent.Async.Lifted
+import Control.Monad.Base
+import Control.Monad.Trans.Control
 import Network.HTTP.Client
 import Network.HTTP.Client.TLS
+import Pipes
 import Project.Bitbucket
 import Project.Config
 import Project.Git
 import Project.Gitlab
 import Project.Logging
-import Pipes
 import System.Environment
 import System.Exit
-import System.Log.Logger
 
 main :: IO ()
 main = do
+  setupLogger
   args <- getArgs
   case args of
     [configFile] -> process configFile >>= exitWith
     _ -> die "Usage: <this-program> <config-file>"
 
-process :: FilePath -> IO ExitCode
+process :: MonadBaseControl IO m => FilePath -> m ExitCode
 process path = do
-  setupLogger
-  config <- loadConfig path
-  infoM "Main" ("> " ++ directory config)
-  manager <- newTlsManager
+  config <- liftBase $ loadConfig path
+  manager <- liftBase newTlsManager
+  info "Main" $ "> " ++ directory config
   allOk <$> mapConcurrently (fetchRepos config) (getSshUrls manager config)
   where
-    getSshUrls :: Manager -> Config -> [Producer String IO ()]
     getSshUrls manager config = map (\f -> f manager config) getters
+    getters :: MonadBase IO m => [Manager -> Config -> Producer String m ()]
     getters = [getGitlabRepoSshUrls, getBitbucketRepoSshUrls]
 
-fetchRepos :: Config -> Producer String IO () -> IO ExitCode
+fetchRepos ::
+     MonadBaseControl IO m => Config -> Producer String m () -> m ExitCode
 fetchRepos config sshUrls = do
   tasks <- P.toListM $ sshUrls >-> P.mapM asyncFetchRepo
   allOk <$> mapM wait tasks

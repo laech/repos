@@ -1,7 +1,11 @@
+{-# LANGUAGE FlexibleContexts #-}
 module Project.Logging
   ( setupLogger
+  , debug
+  , info
   ) where
 
+import Control.Monad.Base
 import System.Console.ANSI
 import System.IO
 import System.Log.Formatter
@@ -27,3 +31,9 @@ ansi _ (priority, message) _ =
       let prefix = setSGRCode [SetColor Foreground intensity color]
           suffix = setSGRCode [Reset]
        in prefix ++ message ++ suffix
+
+info :: MonadBase IO m => String -> String -> m ()
+info name message = liftBase $ infoM name message
+
+debug :: MonadBase IO m => String -> String -> m ()
+debug name message = liftBase $ debugM name message

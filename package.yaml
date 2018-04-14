@@ -14,12 +14,15 @@ dependencies:
 - http-client-tls
 - http-types
 - hslogger
+- lifted-async
+- monad-control
 - network-uri
 - pipes
 - pipes-aeson
 - pipes-parse
 - pipes-http
 - process
+- transformers-base
 - unordered-containers
 
 executables:

@@ -1,10 +1,10 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 
 module Project.HTTP where
 
 import Control.Exception
-import Control.Monad.Catch
-import Control.Monad.IO.Class
+import Control.Monad.Base
 import Data.Aeson hiding (decode)
 import Network.HTTP.Client
 import Pipes
@@ -12,11 +12,14 @@ import Pipes.Aeson
 import Pipes.HTTP
 import Pipes.Parse
 
-getJSON
-  :: (MonadIO m, FromJSON a, Exception e)
-  => Request -> Manager -> (String -> e) -> m a
+getJSON ::
+     (MonadBase IO m, FromJSON a, Exception e)
+  => Request
+  -> Manager
+  -> (String -> e)
+  -> m a
 getJSON req man err =
-  liftIO $
+  liftBase $
   withHTTP req man $ \resp ->
     evalStateT decode (responseBody resp) >>= \case
       Nothing -> failed "end of input"

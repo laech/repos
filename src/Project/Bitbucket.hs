@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
 
@@ -9,7 +10,7 @@ import qualified Data.ByteString.Char8 as C
 import qualified Pipes.Parse as P
 
 import Control.Exception
-import Control.Monad.Catch
+import Control.Monad.Base
 import Data.Aeson
 import Data.Aeson.Types
 import Data.HashMap.Strict ((!))
@@ -22,7 +23,7 @@ import Pipes.Aeson as PA
 import Pipes.HTTP
 import Project.Config
 import Project.HTTP
-import System.Log.Logger
+import Project.Logging
 
 data Page = Page
   { sshUrls :: [String]
@@ -47,9 +48,8 @@ newtype BitbucketException =
 
 instance Exception BitbucketException
 
-getBitbucketRepoSshUrls
-  :: (MonadIO m, MonadThrow m)
-  => Manager -> Config -> Producer String m ()
+getBitbucketRepoSshUrls ::
+     MonadBase IO m => Manager -> Config -> Producer String m ()
 getBitbucketRepoSshUrls manager config = getRepos manager user pass url
   where
     url = "https://bitbucket.org/api/2.0/repositories/" ++ path
@@ -57,28 +57,26 @@ getBitbucketRepoSshUrls manager config = getRepos manager user pass url
     pass = bitbucketPassword config
     path = escapeURIString isAllowedInURI (bitbucketUsername config)
 
-getRepos
-  :: (MonadIO m, MonadThrow m)
-  => Manager -> String -> String -> String -> Producer String m ()
+getRepos ::
+     MonadBase IO m
+  => Manager
+  -> String
+  -> String
+  -> String
+  -> Producer String m ()
 getRepos man user pass url = do
-  (Page urls nextUrl) <- getPage man url user pass
+  (Page urls nextUrl) <- lift $ getPage man url user pass
   for (each urls) yield
   maybe (pure ()) next nextUrl
   where
     next = getRepos man user pass
 
-getPage
-  :: (MonadIO m, MonadThrow m)
-  => Manager -> String -> String -> String -> m Page
+getPage :: MonadBase IO m => Manager -> String -> String -> String -> m Page
 getPage man url user pass = do
   req <- basicAuthRequest url user pass
-  liftIO $
-    debugM "Bitbucket" (". " ++ url) >> --
-    getJSON req man BitbucketException <* --
-    infoM "Bitbucket" ("✓ " ++ url)
+  debug "Bitbucket" (". " ++ url)
+  getJSON req man BitbucketException <* info "Bitbucket" ("✓ " ++ url)
 
-basicAuthRequest
-  :: MonadThrow m
-  => String -> String -> String -> m Request
+basicAuthRequest :: MonadBase IO m => String -> String -> String -> m Request
 basicAuthRequest url user pass =
-  applyBasicAuth (C.pack user) (C.pack pass) <$> parseUrlThrow url
+  liftBase $ applyBasicAuth (C.pack user) (C.pack pass) <$> parseUrlThrow url
