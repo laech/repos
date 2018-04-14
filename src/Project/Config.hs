@@ -9,7 +9,7 @@ module Project.Config
 
 import Control.Monad.Base
 import Data.Aeson
-import Data.ByteString.Lazy as Lazy
+import Data.ByteString.Lazy as L
 import GHC.Generics
 
 data Config = Config
@@ -21,5 +21,5 @@ data Config = Config
 
 loadConfig :: MonadBase IO m => FilePath -> m Config
 loadConfig path = do
-  content <- liftBase $ Lazy.readFile path
-  either fail return (eitherDecode content)
+  content <- liftBase $ L.readFile path
+  either fail pure (eitherDecode content)
