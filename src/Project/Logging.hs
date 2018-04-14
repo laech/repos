@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
+
 module Project.Logging
   ( setupLogger
   , debug
@@ -13,10 +14,11 @@ import System.Log.Handler (setFormatter)
 import System.Log.Handler.Simple
 import System.Log.Logger
 
-setupLogger :: IO ()
-setupLogger = do
-  handler <- flip setFormatter ansi <$> streamHandler stdout DEBUG
-  updateGlobalLogger rootLoggerName (setLevel DEBUG . setHandlers [handler])
+setupLogger :: MonadBase IO m => m ()
+setupLogger =
+  liftBase $ do
+    handler <- flip setFormatter ansi <$> streamHandler stdout DEBUG
+    updateGlobalLogger rootLoggerName (setLevel DEBUG . setHandlers [handler])
 
 ansi :: LogFormatter a
 ansi _ (priority, message) _ =
@@ -32,8 +34,8 @@ ansi _ (priority, message) _ =
           suffix = setSGRCode [Reset]
        in prefix ++ message ++ suffix
 
-info :: MonadBase IO m => String -> String -> m ()
-info name message = liftBase $ infoM name message
+info :: MonadBase IO m => String -> m ()
+info message = liftBase $ infoM rootLoggerName message
 
-debug :: MonadBase IO m => String -> String -> m ()
-debug name message = liftBase $ debugM name message
+debug :: MonadBase IO m => String -> m ()
+debug message = liftBase $ debugM rootLoggerName message

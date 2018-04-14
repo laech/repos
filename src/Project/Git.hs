@@ -5,8 +5,8 @@ module Project.Git
   ) where
 
 import Control.Monad.Base
-import Project.Logging
 import Data.List (intercalate)
+import Project.Logging
 import System.Directory
 import System.Exit
 import System.FilePath
@@ -33,14 +33,14 @@ clone url parent = (shell $ "git clone --quiet " ++ url) {cwd = Just parent}
 
 fetchRepo :: MonadBase IO m => FilePath -> String -> m ExitCode
 fetchRepo parent url = do
-  debug "Git" $ ". " ++ url
+  debug $ ". " ++ url
   let dst = parent </> getProjectName url
   exists <- liftBase $ doesDirectoryExist dst
   result@(code, _, _) <-
     if exists
       then execute [fetch dst, merge dst]
       else execute [clone url parent]
-  info "Git" $ format url result
+  info $ format url result
   pure code
 
 format :: String -> (ExitCode, String, String) -> String

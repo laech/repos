@@ -7,7 +7,6 @@ module Project.Bitbucket
   ) where
 
 import qualified Data.ByteString.Char8 as C
-import qualified Pipes.Parse as P
 
 import Control.Exception
 import Control.Monad.Base
@@ -74,8 +73,8 @@ getRepos man user pass url = do
 getPage :: MonadBase IO m => Manager -> String -> String -> String -> m Page
 getPage man url user pass = do
   req <- basicAuthRequest url user pass
-  debug "Bitbucket" (". " ++ url)
-  getJSON req man BitbucketException <* info "Bitbucket" ("✓ " ++ url)
+  debug $ ". " ++ url
+  getJSON req man BitbucketException <* info ("✓ " ++ url)
 
 basicAuthRequest :: MonadBase IO m => String -> String -> String -> m Request
 basicAuthRequest url user pass =

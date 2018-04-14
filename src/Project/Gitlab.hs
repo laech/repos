@@ -8,7 +8,6 @@ module Project.Gitlab
   ) where
 
 import qualified Data.ByteString.Char8 as C
-import qualified Pipes.Aeson as PA
 import qualified Pipes.Prelude as P
 
 import Control.Exception
@@ -45,12 +44,16 @@ getGitlabRepoSshUrls manager config = repos >-> P.map sshUrl
 
 getRepos :: MonadBase IO m => Manager -> String -> String -> Producer Repo m ()
 getRepos man url token = do
-  req <- lift . liftBase $ withToken token <$> parseUrlThrow url
-  lift . debug "Gitlab" $ ". " ++ url
-  repos :: [Repo] <- lift $ getJSON req man GitlabException
-  lift . info "Gitlab" $ "✓ " ++ url
+  repos <- lift $ getPage man url token
   for (each repos) yield
 
-withToken :: String -> Request -> Request
-withToken token request =
-  request {requestHeaders = [("Private-Token", C.pack token)]}
+getPage :: MonadBase IO m => Manager -> String -> String -> m [Repo]
+getPage man url token = do
+  req <- createRequest url token
+  debug (". " ++ url)
+  getJSON req man GitlabException <* info ("✓ " ++ url)
+
+createRequest :: MonadBase IO m => String -> String -> m Request
+createRequest url token =
+  liftBase (parseUrlThrow url) >>= \req ->
+    pure req {requestHeaders = [("Private-Token", C.pack token)]}

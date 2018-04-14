@@ -28,13 +28,12 @@ main = do
 
 process :: MonadBaseControl IO m => FilePath -> m ExitCode
 process path = do
-  config <- liftBase $ loadConfig path
+  config <- loadConfig path
   manager <- liftBase newTlsManager
-  info "Main" $ "> " ++ directory config
+  info $ "> " ++ directory config
   allOk <$> mapConcurrently (fetchRepos config) (getSshUrls manager config)
   where
     getSshUrls manager config = map (\f -> f manager config) getters
-    getters :: MonadBase IO m => [Manager -> Config -> Producer String m ()]
     getters = [getGitlabRepoSshUrls, getBitbucketRepoSshUrls]
 
 fetchRepos ::
