@@ -4,7 +4,6 @@
 module Project.HTTP where
 
 import Control.Exception
-import Control.Monad.Base
 import Data.Aeson hiding (decode)
 import Network.HTTP.Client
 import Pipes
@@ -13,13 +12,8 @@ import Pipes.HTTP
 import Pipes.Parse
 
 getJSON ::
-     (MonadBase IO m, FromJSON a, Exception e)
-  => Request
-  -> Manager
-  -> (String -> e)
-  -> m a
-getJSON req man err =
-  liftBase $
+     (FromJSON a, Exception e) => (String -> e) -> Manager -> Request -> IO a
+getJSON err man req =
   withHTTP req man $ \resp ->
     evalStateT decode (responseBody resp) >>= \case
       Nothing -> failed "end of input"

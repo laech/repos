@@ -4,7 +4,7 @@ module Project.Git
   ( fetchRepo
   ) where
 
-import Control.Monad.Base
+import Data.Functor
 import Data.List (intercalate)
 import Project.Logging
 import System.Directory
@@ -14,13 +14,12 @@ import System.Process
 
 getProjectName = dropExtension . takeFileName
 
-execute :: MonadBase IO m => [CreateProcess] -> m (ExitCode, String, String)
-execute [x] = liftBase $ readCreateProcessWithExitCode x ""
-execute (x:xs) = do
-  result@(code, _, _) <- execute [x]
-  if code == ExitSuccess
-    then execute xs
-    else pure result
+execute :: [CreateProcess] -> IO (ExitCode, String, String)
+execute [x] = readCreateProcessWithExitCode x ""
+execute (x:xs) = execute [x] >>= process
+  where
+    process (ExitSuccess, _, _) = execute xs
+    process failure = pure failure
 
 fetch :: FilePath -> CreateProcess
 fetch dir = (shell "git fetch --all --quiet") {cwd = Just dir}
@@ -31,17 +30,14 @@ merge dir = (shell "git merge FETCH_HEAD") {cwd = Just dir}
 clone :: String -> FilePath -> CreateProcess
 clone url parent = (shell $ "git clone --quiet " ++ url) {cwd = Just parent}
 
-fetchRepo :: MonadBase IO m => FilePath -> String -> m ExitCode
-fetchRepo parent url = do
-  debug $ ". " ++ url
-  let dst = parent </> getProjectName url
-  exists <- liftBase $ doesDirectoryExist dst
-  result@(code, _, _) <-
-    if exists
-      then execute [fetch dst, merge dst]
-      else execute [clone url parent]
-  info $ format url result
-  pure code
+fetchRepo :: FilePath -> String -> IO ExitCode
+fetchRepo parent url =
+  debug (". " ++ url) *> doesDirectoryExist dst >>= run >>= completed
+  where
+    dst = parent </> getProjectName url
+    run False = execute [clone url parent]
+    run _ = execute [fetch dst, merge dst]
+    completed result@(code, _, _) = code <$ info (format url result)
 
 format :: String -> (ExitCode, String, String) -> String
 format url (code, out, err) =

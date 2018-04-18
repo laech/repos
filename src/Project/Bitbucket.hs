@@ -8,8 +8,8 @@ module Project.Bitbucket
 
 import qualified Data.ByteString.Char8 as C
 
+import Control.Applicative
 import Control.Exception
-import Control.Monad.Base
 import Data.Aeson
 import Data.Aeson.Types
 import Data.HashMap.Strict ((!))
@@ -30,16 +30,14 @@ data Page = Page
   } deriving (Show, Eq, Generic)
 
 instance FromJSON Page where
-  parseJSON =
-    withObject "" $ \v -> do
-      next <- v .:? "next"
-      repos <- v .: "values" :: Parser [Object]
-      links <- mapM (.: "links") repos
-      clones <- concat <$> mapM (.: "clone") links
-      sshUrls <- mapM (.: "href") $ filter isSsh clones
-      pure $ Page sshUrls next
+  parseJSON = withObject "" $ \v -> Page <$> sshUrls v <*> next v
     where
-      isSsh clone = clone ! "name" == "ssh"
+      next v = v .:? "next"
+      sshUrls v =
+        (v .: "values" :: Parser [Object]) >>= --
+        mapM (.: "links") >>= --
+        fmap concat . mapM (.: "clone") >>= --
+        mapM (.: "href") . filter (\x -> x ! "name" == "ssh")
 
 newtype BitbucketException =
   BitbucketException String
@@ -47,8 +45,7 @@ newtype BitbucketException =
 
 instance Exception BitbucketException
 
-getBitbucketRepoSshUrls ::
-     MonadBase IO m => Manager -> Config -> Producer String m ()
+getBitbucketRepoSshUrls :: Manager -> Config -> Producer String IO ()
 getBitbucketRepoSshUrls manager config = getRepos manager user pass url
   where
     url = "https://bitbucket.org/api/2.0/repositories/" ++ path
@@ -56,26 +53,19 @@ getBitbucketRepoSshUrls manager config = getRepos manager user pass url
     pass = bitbucketPassword config
     path = escapeURIString isAllowedInURI (bitbucketUsername config)
 
-getRepos ::
-     MonadBase IO m
-  => Manager
-  -> String
-  -> String
-  -> String
-  -> Producer String m ()
-getRepos man user pass url = do
-  (Page urls nextUrl) <- lift $ getPage man url user pass
-  for (each urls) yield
-  maybe (pure ()) next nextUrl
+getRepos :: Manager -> String -> String -> String -> Producer String IO ()
+getRepos man user pass url = lift (getPage man url user pass) >>= process
   where
     next = getRepos man user pass
+    process (Page urls nextUrl) =
+      for (each urls) yield *> maybe (pure ()) next nextUrl
 
-getPage :: MonadBase IO m => Manager -> String -> String -> String -> m Page
-getPage man url user pass = do
-  req <- basicAuthRequest url user pass
-  debug $ ". " ++ url
-  getJSON req man BitbucketException <* info ("✓ " ++ url)
+getPage :: Manager -> String -> String -> String -> IO Page
+getPage man url user pass =
+  debug (". " ++ url) >>
+  (basicAuth url user pass >>= getJSON BitbucketException man) <*
+  info ("✓ " ++ url)
 
-basicAuthRequest :: MonadBase IO m => String -> String -> String -> m Request
-basicAuthRequest url user pass =
-  liftBase $ applyBasicAuth (C.pack user) (C.pack pass) <$> parseUrlThrow url
+basicAuth :: String -> String -> String -> IO Request
+basicAuth url user pass =
+  applyBasicAuth (C.pack user) (C.pack pass) <$> parseUrlThrow url

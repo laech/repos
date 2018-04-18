@@ -11,13 +11,12 @@ import qualified Data.ByteString.Char8 as C
 import qualified Pipes.Prelude as P
 
 import Control.Exception
-import Control.Monad.Base
-import Control.Monad.Trans.Control
 import Data.Aeson
 import Data.Typeable
 import GHC.Generics
 import Network.HTTP.Client
 import Pipes
+import Pipes.Core
 import Project.Config
 import Project.HTTP
 import Project.Logging
@@ -35,25 +34,22 @@ newtype GitlabException =
 
 instance Exception GitlabException
 
-getGitlabRepoSshUrls ::
-     MonadBase IO m => Manager -> Config -> Producer String m ()
+getGitlabRepoSshUrls :: Manager -> Config -> Producer String IO ()
 getGitlabRepoSshUrls manager config = repos >-> P.map sshUrl
   where
     url = "https://gitlab.com/api/v4/projects?owned=true"
     repos = getRepos manager url (gitlabToken config)
 
-getRepos :: MonadBase IO m => Manager -> String -> String -> Producer Repo m ()
-getRepos man url token = do
-  repos <- lift $ getPage man url token
-  for (each repos) yield
+getRepos :: Manager -> String -> String -> Producer Repo IO ()
+getRepos man url token = each =<< lift (getPage man url token) //> yield
 
-getPage :: MonadBase IO m => Manager -> String -> String -> m [Repo]
-getPage man url token = do
-  req <- createRequest url token
-  debug (". " ++ url)
-  getJSON req man GitlabException <* info ("✓ " ++ url)
+getPage :: Manager -> String -> String -> IO [Repo]
+getPage man url token =
+  debug (". " ++ url) *>
+  (createRequest url token >>= getJSON GitlabException man) <*
+  info ("✓ " ++ url)
 
-createRequest :: MonadBase IO m => String -> String -> m Request
+createRequest :: String -> String -> IO Request
 createRequest url token =
-  liftBase (parseUrlThrow url) >>= \req ->
+  parseUrlThrow url >>= \req ->
     pure req {requestHeaders = [("Private-Token", C.pack token)]}

@@ -7,10 +7,17 @@ module Project.Config
   , loadConfig
   ) where
 
-import Control.Monad.Base
+import Control.Exception
 import Data.Aeson
 import Data.ByteString.Lazy as L
+import Data.Typeable
 import GHC.Generics
+
+newtype ConfigException =
+  ConfigException String
+  deriving (Show, Typeable)
+
+instance Exception ConfigException
 
 data Config = Config
   { bitbucketUsername :: String
@@ -19,7 +26,8 @@ data Config = Config
   , directory :: FilePath
   } deriving (Generic, Show, FromJSON)
 
-loadConfig :: MonadBase IO m => FilePath -> m Config
-loadConfig path = do
-  content <- liftBase $ L.readFile path
-  either fail pure (eitherDecode content)
+loadConfig :: FilePath -> IO Config
+loadConfig path = L.readFile path >>= parse
+  where
+    parse content = either failed pure (eitherDecode content)
+    failed = throwIO . ConfigException

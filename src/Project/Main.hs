@@ -1,12 +1,12 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Main where
 
 import qualified Pipes.Prelude as P
 
-import Control.Concurrent.Async.Lifted
-import Control.Monad.Base
-import Control.Monad.Trans.Control
+import Control.Applicative
+import Control.Concurrent.Async
 import Network.HTTP.Client
 import Network.HTTP.Client.TLS
 import Pipes
@@ -19,30 +19,25 @@ import System.Environment
 import System.Exit
 
 main :: IO ()
-main = do
-  setupLogger
-  args <- getArgs
-  case args of
+main =
+  setupLogger *> getArgs >>= \case
     [configFile] -> process configFile >>= exitWith
     _ -> die "Usage: <this-program> <config-file>"
 
-process :: MonadBaseControl IO m => FilePath -> m ExitCode
-process path = do
-  config <- loadConfig path
-  manager <- liftBase newTlsManager
-  info $ "> " ++ directory config
-  allOk <$> mapConcurrently (fetchRepos config) (getSshUrls manager config)
+process :: FilePath -> IO ExitCode
+process path = (,) <$> loadConfig path <*> newTlsManager >>= uncurry run
   where
-    getSshUrls manager config = map (\f -> f manager config) getters
-    getters = [getGitlabRepoSshUrls, getBitbucketRepoSshUrls]
+    getSshUrls man conf =
+      map (\f -> f man conf) [getGitlabRepoSshUrls, getBitbucketRepoSshUrls]
+    run conf man =
+      info ("> " ++ directory conf) *>
+      (allOk <$> mapConcurrently (fetchRepos conf) (getSshUrls man conf))
 
-fetchRepos ::
-     MonadBaseControl IO m => Config -> Producer String m () -> m ExitCode
-fetchRepos config sshUrls = do
-  tasks <- P.toListM $ sshUrls >-> P.mapM asyncFetchRepo
-  allOk <$> mapM wait tasks
+fetchRepos :: Config -> Producer String IO () -> IO ExitCode
+fetchRepos conf sshUrls =
+  P.toListM (sshUrls >-> P.mapM asyncFetchRepo) >>= fmap allOk . mapM wait
   where
-    asyncFetchRepo = async . fetchRepo (directory config)
+    asyncFetchRepo = async . fetchRepo (directory conf)
 
 allOk :: [ExitCode] -> ExitCode
 allOk = foldl max ExitSuccess

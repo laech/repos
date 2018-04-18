@@ -6,7 +6,6 @@ module Project.Logging
   , info
   ) where
 
-import Control.Monad.Base
 import System.Console.ANSI
 import System.IO
 import System.Log.Formatter
@@ -14,11 +13,12 @@ import System.Log.Handler (setFormatter)
 import System.Log.Handler.Simple
 import System.Log.Logger
 
-setupLogger :: MonadBase IO m => m ()
-setupLogger =
-  liftBase $ do
-    handler <- flip setFormatter ansi <$> streamHandler stdout DEBUG
-    updateGlobalLogger rootLoggerName (setLevel DEBUG . setHandlers [handler])
+setupLogger :: IO ()
+setupLogger = createHandler >>= updateLogger
+  where
+    createHandler = flip setFormatter ansi <$> streamHandler stdout DEBUG
+    updateLogger handler =
+      updateGlobalLogger rootLoggerName (setLevel DEBUG . setHandlers [handler])
 
 ansi :: LogFormatter a
 ansi _ (priority, message) _ =
@@ -34,8 +34,8 @@ ansi _ (priority, message) _ =
           suffix = setSGRCode [Reset]
        in prefix ++ message ++ suffix
 
-info :: MonadBase IO m => String -> m ()
-info message = liftBase $ infoM rootLoggerName message
+info :: String -> IO ()
+info = infoM rootLoggerName
 
-debug :: MonadBase IO m => String -> m ()
-debug message = liftBase $ debugM rootLoggerName message
+debug :: String -> IO ()
+debug = debugM rootLoggerName
