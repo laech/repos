@@ -11,12 +11,12 @@ import qualified Data.ByteString.Char8 as C
 import qualified Pipes.Prelude as P
 
 import Control.Exception
+import Control.Monad
 import Data.Aeson
 import Data.Typeable
 import GHC.Generics
 import Network.HTTP.Client
 import Pipes
-import Pipes.Core
 import Project.Config
 import Project.HTTP
 import Project.Logging
@@ -37,17 +37,23 @@ instance Exception GitlabException
 getGitlabRepoSshUrls :: Manager -> Config -> Producer String IO ()
 getGitlabRepoSshUrls manager config = repos >-> P.map sshUrl
   where
-    url = "https://gitlab.com/api/v4/projects?owned=true"
-    repos = getRepos manager url (gitlabToken config)
+    repos = getRepos manager (gitlabToken config)
 
-getRepos :: Manager -> String -> String -> Producer Repo IO ()
-getRepos man url token = each =<< lift (getPage man url token) //> yield
+getRepos :: Manager -> String -> Producer Repo IO ()
+getRepos man token = getRepos' 1
+  where
+    getRepos' page = do
+      repos <- lift $ getPage man token page
+      for (each repos) yield
+      unless (null repos) $ getRepos' (page + 1)
 
-getPage :: Manager -> String -> String -> IO [Repo]
-getPage man url token =
+getPage :: Manager -> String -> Int -> IO [Repo]
+getPage man token page =
   debug (". " ++ url) *>
   (createRequest url token >>= getJSON GitlabException man) <*
   info ("✓ " ++ url)
+  where
+    url = "https://gitlab.com/api/v4/projects?owned=true&page=" ++ show page
 
 createRequest :: String -> String -> IO Request
 createRequest url token =
