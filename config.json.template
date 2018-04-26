@@ -1,6 +1,4 @@
 {
-    "bitbucketUsername": "my-username",
-    "bitbucketPassword": "my-app-password",
     "gitlabToken": "my-token",
     "directory": "/my/check/out/path"
 }

@@ -20,9 +20,7 @@ newtype ConfigException =
 instance Exception ConfigException
 
 data Config = Config
-  { bitbucketUsername :: String
-  , bitbucketPassword :: String
-  , gitlabToken :: String
+  { gitlabToken :: String
   , directory :: FilePath
   } deriving (Generic, Show, FromJSON)
 

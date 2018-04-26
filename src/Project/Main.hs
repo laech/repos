@@ -7,10 +7,10 @@ import qualified Pipes.Prelude as P
 
 import Control.Applicative
 import Control.Concurrent.Async
+import Control.Monad
 import Network.HTTP.Client
 import Network.HTTP.Client.TLS
 import Pipes
-import Project.Bitbucket
 import Project.Config
 import Project.Git
 import Project.Gitlab
@@ -25,13 +25,14 @@ main =
     _ -> die "Usage: <this-program> <config-file>"
 
 process :: FilePath -> IO ExitCode
-process path = (,) <$> loadConfig path <*> newTlsManager >>= uncurry run
+process path = do
+  conf <- loadConfig path
+  man <- newTlsManager
+  run conf man
   where
-    getSshUrls man conf =
-      map (\f -> f man conf) [getGitlabRepoSshUrls, getBitbucketRepoSshUrls]
     run conf man =
       info ("> " ++ directory conf) *>
-      (allOk <$> mapConcurrently (fetchRepos conf) (getSshUrls man conf))
+      fetchRepos conf (getGitlabRepoSshUrls man conf)
 
 fetchRepos :: Config -> Producer String IO () -> IO ExitCode
 fetchRepos conf sshUrls =
