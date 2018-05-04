@@ -58,4 +58,8 @@ getPage man token page =
 createRequest :: String -> String -> IO Request
 createRequest url token =
   parseUrlThrow url >>= \req ->
-    pure req {requestHeaders = [("Private-Token", C.pack token)]}
+    pure
+      req
+        { requestHeaders = [("Private-Token", C.pack token)]
+        , responseTimeout = responseTimeoutMicro 60000000
+        }
