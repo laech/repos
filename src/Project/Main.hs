@@ -7,6 +7,8 @@ import qualified Pipes.Prelude as P
 
 import Control.Applicative
 import Control.Concurrent.Async
+import Control.Concurrent.QSem
+import Control.Exception
 import Control.Monad
 import Network.HTTP.Client
 import Network.HTTP.Client.TLS
@@ -35,10 +37,17 @@ process path = do
       fetchRepos conf (getGitlabRepoSshUrls man conf)
 
 fetchRepos :: Config -> Producer String IO () -> IO ExitCode
-fetchRepos conf sshUrls =
-  P.toListM (sshUrls >-> P.mapM asyncFetchRepo) >>= fmap allOk . mapM wait
+fetchRepos conf sshUrls = do
+  sem <- newQSem 6
+  asyncExitCodes <- P.toListM $ sshUrls >-> P.mapM (asyncFetchRepo sem)
+  fmap allOk . mapM wait $ asyncExitCodes
   where
-    asyncFetchRepo = async . fetchRepo (directory conf)
+    asyncFetchRepo sem sshUrl =
+      async $
+      bracket_
+        (waitQSem sem)
+        (signalQSem sem)
+        (fetchRepo (directory conf) sshUrl)
 
 allOk :: [ExitCode] -> ExitCode
 allOk = foldl max ExitSuccess
