@@ -34,12 +34,16 @@ newtype GitlabException =
 
 instance Exception GitlabException
 
+type Url = String
+type Token = String
+type PageNumber = Int
+
 getGitlabRepoSshUrls :: Manager -> Config -> Producer String IO ()
 getGitlabRepoSshUrls manager config = repos >-> P.map sshUrl
   where
     repos = getRepos manager (gitlabToken config)
 
-getRepos :: Manager -> String -> Producer Repo IO ()
+getRepos :: Manager -> Token -> Producer Repo IO ()
 getRepos man token = getRepos' 1
   where
     getRepos' page = do
@@ -47,7 +51,7 @@ getRepos man token = getRepos' 1
       for (each repos) yield
       unless (null repos) $ getRepos' (page + 1)
 
-getPage :: Manager -> String -> Int -> IO [Repo]
+getPage :: Manager -> Token -> PageNumber -> IO [Repo]
 getPage man token page =
   debug (". " ++ url) *>
   (createRequest url token >>= getJSON GitlabException man) <*
@@ -55,7 +59,7 @@ getPage man token page =
   where
     url = "https://gitlab.com/api/v4/projects?owned=true&page=" ++ show page
 
-createRequest :: String -> String -> IO Request
+createRequest :: Url -> Token -> IO Request
 createRequest url token =
   parseUrlThrow url >>= \req ->
     pure
