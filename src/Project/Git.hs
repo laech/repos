@@ -7,11 +7,16 @@ where
 
 import Data.List (intercalate)
 import Data.List.NonEmpty (NonEmpty ((:|)))
-import Project.Logging
-import System.Directory
-import System.Exit
-import System.FilePath
+import Project.Logging (debug, info)
+import System.Directory (doesDirectoryExist)
+import System.Exit (ExitCode (ExitSuccess))
+import System.FilePath ((</>), dropExtension, takeFileName)
 import System.Process
+  ( CreateProcess,
+    cwd,
+    readCreateProcessWithExitCode,
+    shell,
+  )
 
 type Url = String
 

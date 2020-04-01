@@ -1,52 +1,92 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE LambdaCase #-}
-
 module Main where
 
-import Control.Applicative
-import Control.Concurrent.Async
+import Control.Applicative ((<**>))
+import Control.Concurrent.Async (async, wait)
 import Control.Concurrent.QSem
-import Control.Exception
-import Control.Monad
-import Network.HTTP.Client
-import Network.HTTP.Client.TLS
-import Pipes
+  ( newQSem,
+    signalQSem,
+    waitQSem,
+  )
+import Control.Exception (bracket_)
+import Network.HTTP.Client.TLS (newTlsManager)
+import qualified Options.Applicative as Opt
+import Options.Applicative
+  ( Parser,
+    execParser,
+    fullDesc,
+    helper,
+    long,
+    strOption,
+  )
+import Options.Applicative.Types (ParserM, fromM, oneM)
+import Pipes ((>->), Producer)
 import qualified Pipes.Prelude as P
-import Project.Config
-import Project.Git
-import Project.Gitlab
-import Project.Logging
-import System.Environment
-import System.Exit
+import Project.Git (fetchRepo)
+import Project.Gitlab (getGitlabRepoUrls)
+import Project.Logging (info, setupLogger)
+import System.Environment (getArgs)
+import System.Exit (ExitCode (ExitSuccess), exitWith)
+import System.Process (readProcess)
+
+data Options
+  = Options
+      { directory :: FilePath,
+        username :: String
+      }
+  deriving (Show)
+
+options :: ParserM Options
+options = do
+  directory <- oneM $ strOption (long "directory")
+  username <- oneM $ strOption (long "username")
+  pure
+    Options
+      { directory = directory,
+        username = username
+      }
 
 main :: IO ()
-main =
-  setupLogger *> getArgs >>= \case
-    [configFile] -> process configFile >>= exitWith
-    _ -> die "Usage: <this-program> <config-file>"
+main = do
+  _ <- setupLogger
+  options <- execParser (Opt.info (fromM options <**> helper) fullDesc)
+  process options >>= exitWith
 
-process :: FilePath -> IO ExitCode
-process path = do
-  conf <- loadConfig path
+process :: Options -> IO ExitCode
+process options = do
+  token <- getToken (username options)
   man <- newTlsManager
-  run conf man
+  run token man
   where
-    run conf man =
-      info ("> " ++ directory conf)
-        *> fetchRepos conf (getGitlabRepoSshUrls man conf)
+    run token man =
+      info ("> " ++ directory options)
+        *> fetchRepos (directory options) (getGitlabRepoUrls man token)
 
-fetchRepos :: Config -> Producer String IO () -> IO ExitCode
-fetchRepos conf sshUrls = do
+getToken :: String -> IO String
+getToken username =
+  readProcess
+    "secret-tool"
+    [ "lookup",
+      "protocol",
+      "https",
+      "server",
+      "gitlab.com",
+      "user",
+      username
+    ]
+    ""
+
+fetchRepos :: FilePath -> Producer String IO () -> IO ExitCode
+fetchRepos directory urls = do
   sem <- newQSem 6
-  asyncExitCodes <- P.toListM $ sshUrls >-> P.mapM (asyncFetchRepo sem)
+  asyncExitCodes <- P.toListM $ urls >-> P.mapM (asyncFetchRepo sem)
   fmap allOk . mapM wait $ asyncExitCodes
   where
-    asyncFetchRepo sem sshUrl =
+    asyncFetchRepo sem url =
       async $
         bracket_
           (waitQSem sem)
           (signalQSem sem)
-          (fetchRepo (directory conf) sshUrl)
+          (fetchRepo directory url)
 
 allOk :: [ExitCode] -> ExitCode
 allOk = foldl max ExitSuccess

@@ -3,12 +3,12 @@
 
 module Project.HTTP where
 
-import Control.Exception
-import Data.Aeson hiding (decode)
-import Network.HTTP.Client
-import Pipes.Aeson
-import Pipes.HTTP
-import Pipes.Parse
+import Control.Exception (Exception, throwIO)
+import Data.Aeson (FromJSON)
+import Network.HTTP.Client (Manager, Request, responseBody)
+import Pipes.Aeson (decode)
+import Pipes.HTTP (withHTTP)
+import Pipes.Parse (evalStateT)
 
 getJSON ::
   (FromJSON a, Exception e) =>

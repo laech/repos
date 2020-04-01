@@ -1,5 +1,5 @@
 name:                projects
-version:             0.1.0.0
+version:             0.0.0.0
 
 dependencies:
 - aeson
@@ -15,12 +15,12 @@ dependencies:
 - http-types
 - hslogger
 - network-uri
+- optparse-applicative
 - pipes
 - pipes-aeson
 - pipes-parse
 - pipes-http
 - process
-- unordered-containers
 
 executables:
   projects:

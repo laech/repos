@@ -4,28 +4,32 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Project.Gitlab
-  ( getGitlabRepoSshUrls,
+  ( getGitlabRepoUrls,
   )
 where
 
-import Control.Exception
-import Control.Monad
-import Data.Aeson
+import Control.Exception (Exception)
+import Control.Monad (unless)
+import Data.Aeson ((.:), FromJSON, parseJSON, withObject)
 import qualified Data.ByteString.Char8 as C
-import Data.Typeable
-import GHC.Generics
+import Data.Typeable (Typeable)
+import GHC.Generics (Generic)
 import Network.HTTP.Client
-import Pipes
+  ( Manager,
+    Request (requestHeaders, responseTimeout),
+    parseUrlThrow,
+    responseTimeoutMicro,
+  )
+import Pipes ((>->), Producer, each, for, lift, yield)
 import qualified Pipes.Prelude as P
-import Project.Config
-import Project.HTTP
-import Project.Logging
+import Project.HTTP (getJSON)
+import Project.Logging (debug, info)
 
-newtype Repo = Repo {sshUrl :: String}
+newtype Repo = Repo {url :: String}
   deriving (Show, Eq, Generic)
 
 instance FromJSON Repo where
-  parseJSON = withObject "Repo" $ \v -> Repo <$> v .: "ssh_url_to_repo"
+  parseJSON = withObject "Repo" $ \v -> Repo <$> v .: "http_url_to_repo"
 
 newtype GitlabException = GitlabException String
   deriving (Show, Typeable)
@@ -38,10 +42,10 @@ type Token = String
 
 type PageNumber = Int
 
-getGitlabRepoSshUrls :: Manager -> Config -> Producer String IO ()
-getGitlabRepoSshUrls manager config = repos >-> P.map sshUrl
+getGitlabRepoUrls :: Manager -> Token -> Producer String IO ()
+getGitlabRepoUrls manager token = repos >-> P.map url
   where
-    repos = getRepos manager (gitlabToken config)
+    repos = getRepos manager token
 
 getRepos :: Manager -> Token -> Producer Repo IO ()
 getRepos man token = getRepos' 1
