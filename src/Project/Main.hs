@@ -1,13 +1,15 @@
 module Main where
 
 import Control.Applicative ((<**>))
-import Control.Concurrent.Async (async, wait)
+import Control.Concurrent.Async (Async, async, wait)
 import Control.Concurrent.QSem
   ( newQSem,
     signalQSem,
     waitQSem,
   )
 import Control.Exception (bracket_)
+import Data.Foldable (foldl')
+import Network.HTTP.Client (Manager)
 import Network.HTTP.Client.TLS (newTlsManager)
 import qualified Options.Applicative as Opt
 import Options.Applicative
@@ -19,10 +21,8 @@ import Options.Applicative
     strOption,
   )
 import Options.Applicative.Types (ParserM, fromM, oneM)
-import Pipes ((>->), Producer)
-import qualified Pipes.Prelude as P
 import Project.Git (fetchRepo)
-import Project.Gitlab (getGitlabRepoUrls)
+import Project.Gitlab (forEachGitlabRepo)
 import Project.Logging (info, setupLogger)
 import System.Environment (getArgs)
 import System.Exit (ExitCode (ExitSuccess), exitWith)
@@ -47,19 +47,27 @@ options = do
 
 main :: IO ()
 main = do
-  _ <- setupLogger
+  setupLogger
   options <- execParser (Opt.info (fromM options <**> helper) fullDesc)
   process options >>= exitWith
 
 process :: Options -> IO ExitCode
 process options = do
   token <- getToken (username options)
-  man <- newTlsManager
-  run token man
+  manager <- newTlsManager
+  results <- runAsync token manager
+  allOk <$> mapM wait results
   where
-    run token man =
+    runAsync token manager = do
       info ("> " ++ directory options)
-        *> fetchRepos (directory options) (getGitlabRepoUrls man token)
+      sem <- newQSem 6
+      forEachGitlabRepo
+        manager
+        token
+        ( async
+            . bracket_ (waitQSem sem) (signalQSem sem)
+            . fetchRepo (directory options)
+        )
 
 getToken :: String -> IO String
 getToken username =
@@ -74,19 +82,6 @@ getToken username =
       username
     ]
     ""
-
-fetchRepos :: FilePath -> Producer String IO () -> IO ExitCode
-fetchRepos directory urls = do
-  sem <- newQSem 6
-  asyncExitCodes <- P.toListM $ urls >-> P.mapM (asyncFetchRepo sem)
-  fmap allOk . mapM wait $ asyncExitCodes
-  where
-    asyncFetchRepo sem url =
-      async $
-        bracket_
-          (waitQSem sem)
-          (signalQSem sem)
-          (fetchRepo directory url)
 
 allOk :: [ExitCode] -> ExitCode
 allOk = foldl max ExitSuccess

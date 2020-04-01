@@ -43,10 +43,10 @@ ansi _ (priority, message) _ =
     ERROR -> setColor Dull Red message
     _ -> message
   where
-    setColor intensity color message =
+    setColor intensity color msg =
       let prefix = setSGRCode [SetColor Foreground intensity color]
           suffix = setSGRCode [Reset]
-       in prefix ++ message ++ suffix
+       in prefix ++ msg ++ suffix
 
 info :: String -> IO ()
 info = infoM rootLoggerName
