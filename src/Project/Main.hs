@@ -3,8 +3,6 @@
 
 module Main where
 
-import qualified Pipes.Prelude as P
-
 import Control.Applicative
 import Control.Concurrent.Async
 import Control.Concurrent.QSem
@@ -13,6 +11,7 @@ import Control.Monad
 import Network.HTTP.Client
 import Network.HTTP.Client.TLS
 import Pipes
+import qualified Pipes.Prelude as P
 import Project.Config
 import Project.Git
 import Project.Gitlab
@@ -33,8 +32,8 @@ process path = do
   run conf man
   where
     run conf man =
-      info ("> " ++ directory conf) *>
-      fetchRepos conf (getGitlabRepoSshUrls man conf)
+      info ("> " ++ directory conf)
+        *> fetchRepos conf (getGitlabRepoSshUrls man conf)
 
 fetchRepos :: Config -> Producer String IO () -> IO ExitCode
 fetchRepos conf sshUrls = do
@@ -44,10 +43,10 @@ fetchRepos conf sshUrls = do
   where
     asyncFetchRepo sem sshUrl =
       async $
-      bracket_
-        (waitQSem sem)
-        (signalQSem sem)
-        (fetchRepo (directory conf) sshUrl)
+        bracket_
+          (waitQSem sem)
+          (signalQSem sem)
+          (fetchRepo (directory conf) sshUrl)
 
 allOk :: [ExitCode] -> ExitCode
 allOk = foldl max ExitSuccess

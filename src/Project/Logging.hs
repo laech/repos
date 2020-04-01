@@ -1,10 +1,11 @@
 {-# LANGUAGE FlexibleContexts #-}
 
 module Project.Logging
-  ( setupLogger
-  , debug
-  , info
-  ) where
+  ( setupLogger,
+    debug,
+    info,
+  )
+where
 
 import System.Console.ANSI
 import System.IO
@@ -22,8 +23,7 @@ setupLogger = createHandler >>= updateLogger
 
 ansi :: LogFormatter a
 ansi _ (priority, message) _ =
-  pure $
-  case priority of
+  pure $ case priority of
     DEBUG -> setColor Vivid Black message
     INFO -> setColor Dull Blue message
     ERROR -> setColor Dull Red message

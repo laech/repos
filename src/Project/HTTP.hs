@@ -11,7 +11,11 @@ import Pipes.HTTP
 import Pipes.Parse
 
 getJSON ::
-     (FromJSON a, Exception e) => (String -> e) -> Manager -> Request -> IO a
+  (FromJSON a, Exception e) =>
+  (String -> e) ->
+  Manager ->
+  Request ->
+  IO a
 getJSON err man req =
   withHTTP req man $ \resp ->
     evalStateT decode (responseBody resp) >>= \case
