@@ -1,0 +1,5 @@
+image: haskell:8.8.2
+
+build:
+  stage: build
+  script: stack build --test
