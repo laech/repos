@@ -6,7 +6,6 @@ module Project.HTTP where
 import Control.Exception
 import Data.Aeson hiding (decode)
 import Network.HTTP.Client
-import Pipes
 import Pipes.Aeson
 import Pipes.HTTP
 import Pipes.Parse
