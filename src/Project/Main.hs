@@ -1,3 +1,5 @@
+{-# LANGUAGE NamedFieldPuns #-}
+
 module Main where
 
 import Control.Applicative ((<**>))
@@ -11,7 +13,6 @@ import Control.Exception (bracket_)
 import Data.Foldable (foldl')
 import Network.HTTP.Client (Manager)
 import Network.HTTP.Client.TLS (newTlsManager)
-import qualified Options.Applicative as Opt
 import Options.Applicative
   ( Parser,
     execParser,
@@ -20,6 +21,7 @@ import Options.Applicative
     long,
     strOption,
   )
+import qualified Options.Applicative as Opt
 import Options.Applicative.Types (ParserM, fromM, oneM)
 import Project.Git (fetchRepo)
 import Project.Gitlab (forEachGitlabRepo)
@@ -28,22 +30,17 @@ import System.Environment (getArgs)
 import System.Exit (ExitCode (ExitSuccess), exitWith)
 import System.Process (readProcess)
 
-data Options
-  = Options
-      { directory :: FilePath,
-        username :: String
-      }
+data Options = Options
+  { directory :: FilePath,
+    username :: String
+  }
   deriving (Show)
 
 options :: ParserM Options
 options = do
   directory <- oneM $ strOption (long "directory")
   username <- oneM $ strOption (long "username")
-  pure
-    Options
-      { directory = directory,
-        username = username
-      }
+  pure Options {directory, username}
 
 main :: IO ()
 main = do
@@ -84,4 +81,4 @@ getToken username =
     ""
 
 allOk :: [ExitCode] -> ExitCode
-allOk = foldl max ExitSuccess
+allOk = foldl' max ExitSuccess

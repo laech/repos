@@ -10,7 +10,7 @@ import Data.List.NonEmpty (NonEmpty ((:|)))
 import Project.Logging (debug, info)
 import System.Directory (doesDirectoryExist)
 import System.Exit (ExitCode (ExitSuccess))
-import System.FilePath ((</>), dropExtension, takeFileName)
+import System.FilePath (dropExtension, takeFileName, (</>))
 import System.Process
   ( CreateProcess,
     cwd,

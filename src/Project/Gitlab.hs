@@ -9,11 +9,11 @@ module Project.Gitlab
 where
 
 import Data.Aeson
-  ( (.:),
-    FromJSON,
+  ( FromJSON,
     eitherDecode,
     parseJSON,
     withObject,
+    (.:),
   )
 import qualified Data.ByteString.Char8 as C
 import GHC.Generics (Generic)
@@ -59,9 +59,10 @@ getPage manager token page = do
     <* info ("✓ " ++ url)
 
 createRequest :: Url -> Token -> IO Request
-createRequest url token = parseUrlThrow url >>= \req ->
-  pure
-    req
-      { requestHeaders = [("Private-Token", C.pack token)],
-        responseTimeout = responseTimeoutMicro 60000000
-      }
+createRequest url token =
+  parseUrlThrow url >>= \req ->
+    pure
+      req
+        { requestHeaders = [("Private-Token", C.pack token)],
+          responseTimeout = responseTimeoutMicro 60000000
+        }
