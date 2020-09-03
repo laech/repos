@@ -1,70 +1,78 @@
-{-# LANGUAGE NamedFieldPuns #-}
-
 module Main where
 
-import Control.Applicative ((<**>))
-import Control.Concurrent.Async (Async, async, wait)
+import Control.Applicative
+import Control.Concurrent.Async
 import Control.Concurrent.QSem
-  ( newQSem,
-    signalQSem,
-    waitQSem,
-  )
-import Control.Exception (bracket_)
-import Data.Foldable (foldl')
-import Network.HTTP.Client (Manager)
-import Network.HTTP.Client.TLS (newTlsManager)
-import Options.Applicative
-  ( Parser,
-    execParser,
-    fullDesc,
-    helper,
-    long,
-    strOption,
-  )
+import Control.Exception
+import Control.Monad
+import Data.Foldable
+import Data.List
+import Network.HTTP.Client
+import Network.HTTP.Client.TLS
 import qualified Options.Applicative as Opt
-import Options.Applicative.Types (ParserM, fromM, oneM)
-import Project.Git (fetchRepo)
-import Project.Gitlab (forEachGitlabRepo)
-import Project.Logging (info, setupLogger)
-import System.Environment (getArgs)
-import System.Exit (ExitCode (ExitSuccess), exitWith)
-import System.Process (readProcess)
+import Options.Applicative.Types
+import Project.Git
+import Project.Gitlab
+import Project.Logging
+import System.Environment
+import System.Exit
+import System.Process
 
 data Options = Options
-  { directory :: FilePath,
-    username :: String
+  { getOptionDirectory :: FilePath,
+    getOptionUsername :: String
   }
-  deriving (Show)
+  deriving (Show, Eq)
 
 options :: ParserM Options
 options = do
-  directory <- oneM $ strOption (long "directory")
-  username <- oneM $ strOption (long "username")
-  pure Options {directory, username}
+  directory <- oneM $ Opt.strOption (Opt.long "directory")
+  username <- oneM $ Opt.strOption (Opt.long "username")
+  pure
+    Options
+      { getOptionDirectory = directory,
+        getOptionUsername = username
+      }
 
 main :: IO ()
 main = do
   setupLogger
-  options <- execParser (Opt.info (fromM options <**> helper) fullDesc)
-  process options >>= exitWith
+  options <- Opt.execParser (Opt.info (fromM options <**> Opt.helper) Opt.fullDesc)
+  result <- process options
+  unless result exitFailure
 
-process :: Options -> IO ExitCode
+process :: Options -> IO Bool
 process options = do
-  token <- getToken (username options)
+  token <- getToken $getOptionUsername options
   manager <- newTlsManager
   results <- runAsync token manager
-  allOk <$> mapM wait results
+  and <$> mapM wait results
   where
     runAsync token manager = do
-      info ("> " ++ directory options)
+      let dir = getOptionDirectory options
+      info $ "> " ++ dir
       sem <- newQSem 6
       forEachGitlabRepo
         manager
         token
+        dir
         ( async
             . bracket_ (waitQSem sem) (signalQSem sem)
-            . fetchRepo (directory options)
+            . tryFetchRepo
         )
+
+tryFetchRepo :: Repo -> IO Bool
+tryFetchRepo repo = catch fetch handle
+  where
+    url = getRemoteUrl . getRepoRemote $ repo
+    fetch = do
+      debug $ ". " ++ url
+      fetchRepo repo
+      info $ "✓ " ++ url
+      pure True
+    handle (SomeException e) = do
+      error $ "✗ " ++ url ++ "\n" ++ show e
+      pure False
 
 getToken :: String -> IO String
 getToken username =
@@ -79,6 +87,3 @@ getToken username =
       username
     ]
     ""
-
-allOk :: [ExitCode] -> ExitCode
-allOk = foldl' max ExitSuccess
