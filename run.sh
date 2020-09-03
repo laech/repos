@@ -6,4 +6,4 @@ set -e pipefail
 
 cd "$(dirname "$0")"
 
-stack run -- --directory /home/lae/projects/self --username lae
+stack run -- --directory /home/lae/projects/self --gitlab-user lae --github-user laech

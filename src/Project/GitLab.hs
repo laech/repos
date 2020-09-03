@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Project.Gitlab
-  ( forEachGitlabRepo,
+module Project.GitLab
+  ( forEachGitLabRepo,
   )
 where
 
@@ -26,8 +26,8 @@ type Token = String
 
 type PageNumber = Int
 
-forEachGitlabRepo :: Manager -> Token -> FilePath -> (Repo -> IO a) -> IO [a]
-forEachGitlabRepo manager token parent action = forEachPage 1
+forEachGitLabRepo :: Manager -> Token -> FilePath -> (Repo -> IO a) -> IO [a]
+forEachGitLabRepo manager token parent action = forEachPage 1
   where
     forEachPage i = do
       repos <- getPage manager token parent i
