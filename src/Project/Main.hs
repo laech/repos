@@ -5,17 +5,12 @@ import Control.Concurrent.Async
 import Control.Concurrent.QSem
 import Control.Exception
 import Control.Monad
-import Data.Foldable
-import Data.List
-import Network.HTTP.Client
 import Network.HTTP.Client.TLS
 import qualified Options.Applicative as Opt
 import Options.Applicative.Types
 import Project.Git
-import Project.GitHub
-import Project.GitLab
+import Project.GitProvider
 import Project.Logging
-import System.Environment
 import System.Exit
 import System.Process
 
@@ -60,15 +55,15 @@ process options = do
       liftA2
         (++)
         ( forEachGitLabRepo
-            manager
             gitlabToken
+            manager
             dir
             (handle sem)
         )
         ( forEachGitHubRepo
-            manager
             (getOptionGitHubUser options)
             githubToken
+            manager
             dir
             (handle sem)
         )

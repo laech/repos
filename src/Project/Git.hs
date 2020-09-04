@@ -9,8 +9,6 @@ import Control.Applicative hiding (many)
 import Control.Monad
 import Data.Char
 import Data.List
-import Data.List.NonEmpty hiding (nub)
-import Project.Logging
 import System.Directory
 import System.Exit
 import System.FilePath

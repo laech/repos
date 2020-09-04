@@ -1,5 +1,3 @@
-{-# LANGUAGE FlexibleContexts #-}
-
 module Project.Logging
   ( setupLogger,
     debug,
@@ -8,25 +6,11 @@ module Project.Logging
 where
 
 import System.Console.ANSI
-  ( Color (Black, Blue, Red),
-    ColorIntensity (Dull, Vivid),
-    ConsoleLayer (Foreground),
-    SGR (Reset, SetColor),
-    setSGRCode,
-  )
-import System.IO (stdout)
-import System.Log.Formatter (LogFormatter)
-import System.Log.Handler (setFormatter)
-import System.Log.Handler.Simple (streamHandler)
+import System.IO
+import System.Log.Formatter
+import System.Log.Handler hiding (setLevel)
+import System.Log.Handler.Simple
 import System.Log.Logger
-  ( Priority (DEBUG, ERROR, INFO),
-    debugM,
-    infoM,
-    rootLoggerName,
-    setHandlers,
-    setLevel,
-    updateGlobalLogger,
-  )
 
 setupLogger :: IO ()
 setupLogger = createHandler >>= updateLogger
