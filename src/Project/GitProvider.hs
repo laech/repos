@@ -45,7 +45,7 @@ forEachGitHubRepo user token =
   forEachRepo
     Provider
       { getProviderName = "github",
-        getProviderPageUrl = ("https://api.github.com/user/repos?page=" ++),
+        getProviderPageUrl = ("https://api.github.com/user/repos?type=owner&page=" ++),
         getProviderRepoUrl = (.: "clone_url"),
         getProviderRequest = \req ->
           applyBasicAuth (pack user) (pack token) $
