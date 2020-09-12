@@ -17,7 +17,7 @@ import Project.Logging
 data Provider = Provider
   { getProviderRequest :: Request -> Request,
     getProviderName :: String,
-    getProviderPageUrl :: String -> String,
+    getProviderPageUrl :: Int -> String,
     getProviderRepoUrl :: Object -> Parser String
   }
 
@@ -26,7 +26,7 @@ forEachGitLabRepo token =
   forEachRepo
     Provider
       { getProviderName = "gitlab",
-        getProviderPageUrl = ("https://gitlab.com/api/v4/projects?owned=true&page=" ++),
+        getProviderPageUrl = ("https://gitlab.com/api/v4/projects?owned=true&page=" ++) . show,
         getProviderRepoUrl = (.: "http_url_to_repo"),
         getProviderRequest = \req ->
           req
@@ -45,7 +45,7 @@ forEachGitHubRepo user token =
   forEachRepo
     Provider
       { getProviderName = "github",
-        getProviderPageUrl = ("https://api.github.com/user/repos?type=owner&page=" ++),
+        getProviderPageUrl = ("https://api.github.com/user/repos?type=owner&page=" ++) . show,
         getProviderRepoUrl = (.: "clone_url"),
         getProviderRequest = \req ->
           applyBasicAuth (pack user) (pack token) $
@@ -69,7 +69,7 @@ forEachRepo provider manager parent action = forEachPage 1
 
 getPage :: Provider -> Manager -> FilePath -> Int -> IO [Repo]
 getPage provider manager parent page = do
-  let url = getProviderPageUrl provider (show page)
+  let url = getProviderPageUrl provider page
   debug (". " ++ url)
   request <- createRequest provider url
   response <- httpLbs request manager

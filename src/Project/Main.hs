@@ -58,27 +58,27 @@ process options = do
             gitlabToken
             manager
             dir
-            (handle sem)
+            (handle sem False)
         )
         ( forEachGitHubRepo
             (getOptionGitHubUser options)
             githubToken
             manager
             dir
-            (handle sem)
+            (handle sem True)
         )
-    handle sem =
+    handle sem setAsOrigin =
       async
         . bracket_ (waitQSem sem) (signalQSem sem)
-        . tryFetchRepo
+        . tryFetchRepo setAsOrigin
 
-tryFetchRepo :: Repo -> IO Bool
-tryFetchRepo repo = catch fetch handle
+tryFetchRepo :: Bool -> Repo -> IO Bool
+tryFetchRepo setAsOrigin repo = catch fetch handle
   where
     url = getRemoteUrl . getRepoRemote $ repo
     fetch = do
       debug $ ". " ++ url
-      fetchRepo repo
+      fetchRepo setAsOrigin repo
       info $ "✓ " ++ url
       pure True
     handle (SomeException e) = do
