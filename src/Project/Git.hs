@@ -110,7 +110,7 @@ fetch :: Repo -> IO ()
 fetch repo = do
   let remote = getRepoRemote repo
   remotes <- readRemotes repo
-  unless (remote `elem` remotes) $ do
+  unless (remote `elem` remotes) $
     if getRemoteName remote `elem` fmap getRemoteName remotes
       then setRemote repo
       else addRemote repo
@@ -135,9 +135,17 @@ clone repo = do
       { cwd = Just . takeDirectory . getRepoDirectory $ repo
       }
 
-fetchRepo :: Repo -> IO ()
-fetchRepo repo = do
+fetchRepo :: Bool -> Repo -> IO ()
+fetchRepo setAsOrogin repo = do
   let url = getRemoteUrl . getRepoRemote $ repo
   let dst = getRepoDirectory repo
   exists <- doesDirectoryExist dst
   (if exists then fetch else clone) repo
+  when setAsOrogin $
+    fetch
+      repo
+        { getRepoRemote =
+            (getRepoRemote repo)
+              { getRemoteName = "origin"
+              }
+        }
