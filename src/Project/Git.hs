@@ -1,5 +1,6 @@
 module Project.Git
   ( fetchRepo,
+    getCredential,
     Repo (..),
     Remote (..),
   )
@@ -149,3 +150,15 @@ fetchRepo setAsOrogin repo = do
               { getRemoteName = "origin"
               }
         }
+
+getCredential :: String -> IO String
+getCredential host = do
+  output <-
+    readProcess "git" ["credential", "fill"] $
+      intercalate "\n" ["protocol=https", "host=" ++ host, ""]
+  pure
+    . head
+    . map (drop . length $ "password=")
+    . filter (isPrefixOf "password=")
+    . lines
+    $ output

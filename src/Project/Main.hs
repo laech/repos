@@ -42,8 +42,8 @@ main = do
 
 process :: Options -> IO Bool
 process options = do
-  gitlabToken <- getGitLabToken $ getOptionGitLabUser options
-  githubToken <- getGitHubToken $ getOptionGitHubUser options
+  gitlabToken <- getCredential "gitlab.com"
+  githubToken <- getCredential "github.com"
   manager <- newTlsManager
   results <- runAsync gitlabToken githubToken manager
   and <$> mapM wait results
@@ -84,31 +84,3 @@ tryFetchRepo setAsOrigin repo = catch fetch handle
     handle (SomeException e) = do
       error $ "✗ " ++ url ++ "\n" ++ show e
       pure False
-
-getGitLabToken :: String -> IO String
-getGitLabToken user =
-  readProcess
-    "secret-tool"
-    [ "lookup",
-      "protocol",
-      "https",
-      "server",
-      "gitlab.com",
-      "user",
-      user
-    ]
-    ""
-
-getGitHubToken :: String -> IO String
-getGitHubToken user =
-  readProcess
-    "secret-tool"
-    [ "lookup",
-      "protocol",
-      "https",
-      "server",
-      "github.com",
-      "user",
-      user
-    ]
-    ""
