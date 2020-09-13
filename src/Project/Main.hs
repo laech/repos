@@ -12,7 +12,8 @@ import Project.Git
 import Project.GitProvider
 import Project.Logging
 import System.Exit
-import System.Process
+
+-- TODO prevent concurrent modification to same project
 
 data Options = Options
   { getOptionDirectory :: FilePath,
