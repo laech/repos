@@ -1,6 +1,7 @@
 module Project.Git
   ( fetchRepo,
     getCredential,
+    getRepoName,
     Repo (..),
     Remote (..),
   )

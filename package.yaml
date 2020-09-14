@@ -9,6 +9,7 @@ dependencies:
 - bytestring
 - directory
 - filepath
+- filelock
 - http-client
 - http-client-tls
 - http-types

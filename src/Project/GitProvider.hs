@@ -13,6 +13,9 @@ import Data.ByteString.Char8 (pack)
 import Network.HTTP.Client
 import Project.Git
 import Project.Logging
+import System.Directory
+import System.FileLock
+import System.FilePath
 
 data Provider = Provider
   { getProviderRequest :: Request -> Request,
@@ -62,10 +65,14 @@ forEachRepo provider manager parent action = forEachPage 1
   where
     forEachPage i = do
       repos <- getPage provider manager parent i
-      results <- mapM action repos
+      results <- mapM lockAction repos
       if null results
         then pure results
         else (results ++) <$> forEachPage (i + 1)
+    lockAction repo = do
+      let lock = getRepoParentDirectory repo </> (getRepoName repo ++ ".lock")
+      withFileLock lock Exclusive (const . action $ repo)
+        <* removeFile lock
 
 getPage :: Provider -> Manager -> FilePath -> Int -> IO [Repo]
 getPage provider manager parent page = do

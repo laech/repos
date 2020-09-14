@@ -13,8 +13,6 @@ import Project.GitProvider
 import Project.Logging
 import System.Exit
 
--- TODO prevent concurrent modification to same project
-
 data Options = Options
   { getOptionDirectory :: FilePath,
     getOptionGitHubUser :: String
