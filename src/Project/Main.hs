@@ -17,7 +17,6 @@ import System.Exit
 
 data Options = Options
   { getOptionDirectory :: FilePath,
-    getOptionGitLabUser :: String,
     getOptionGitHubUser :: String
   }
   deriving (Show, Eq)
@@ -25,12 +24,10 @@ data Options = Options
 options :: ParserM Options
 options = do
   directory <- oneM $ Opt.strOption (Opt.long "directory")
-  gitlabUser <- oneM $ Opt.strOption (Opt.long "gitlab-user")
   githubUser <- oneM $ Opt.strOption (Opt.long "github-user")
   pure
     Options
       { getOptionDirectory = directory,
-        getOptionGitLabUser = gitlabUser,
         getOptionGitHubUser = githubUser
       }
 
