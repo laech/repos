@@ -37,21 +37,15 @@ forEachGitLabRepo token =
             }
       }
 
-forEachGitHubRepo ::
-  String ->
-  String ->
-  Manager ->
-  FilePath ->
-  (Repo -> IO a) ->
-  IO [a]
-forEachGitHubRepo user token =
+forEachGitHubRepo :: String -> Manager -> FilePath -> (Repo -> IO a) -> IO [a]
+forEachGitHubRepo token =
   forEachRepo
     Provider
       { getProviderName = "github",
         getProviderPageUrl = ("https://api.github.com/user/repos?type=owner&page=" ++) . show,
         getProviderRepoUrl = (.: "clone_url"),
         getProviderRequest = \req ->
-          applyBasicAuth (pack user) (pack token) $
+          applyBasicAuth "PersonalAccessToken" (pack token) $
             req
               { requestHeaders =
                   [ ("Accept", "application/vnd.github.v3+json"),

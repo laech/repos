@@ -14,20 +14,12 @@ import Project.Logging
 import System.Exit
 
 data Options = Options
-  { getOptionDirectory :: FilePath,
-    getOptionGitHubUser :: String
+  { getOptionDirectory :: FilePath
   }
   deriving (Show, Eq)
 
 options :: ParserM Options
-options = do
-  directory <- oneM $ Opt.strOption (Opt.long "directory")
-  githubUser <- oneM $ Opt.strOption (Opt.long "github-user")
-  pure
-    Options
-      { getOptionDirectory = directory,
-        getOptionGitHubUser = githubUser
-      }
+options = Options <$> oneM (Opt.strOption (Opt.long "directory"))
 
 main :: IO ()
 main = do
@@ -50,19 +42,8 @@ process options = do
       sem <- newQSem 6
       liftA2
         (++)
-        ( forEachGitLabRepo
-            gitlabToken
-            manager
-            dir
-            (handle sem False)
-        )
-        ( forEachGitHubRepo
-            (getOptionGitHubUser options)
-            githubToken
-            manager
-            dir
-            (handle sem True)
-        )
+        (forEachGitLabRepo gitlabToken manager dir (handle sem False))
+        (forEachGitHubRepo githubToken manager dir (handle sem True))
     handle sem setAsOrigin =
       async
         . bracket_ (waitQSem sem) (signalQSem sem)
