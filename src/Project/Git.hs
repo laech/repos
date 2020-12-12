@@ -139,7 +139,6 @@ clone repo = do
 
 fetchRepo :: Bool -> Repo -> IO ()
 fetchRepo setAsOrogin repo = do
-  let url = getRemoteUrl . getRepoRemote $ repo
   let dst = getRepoDirectory repo
   exists <- doesDirectoryExist dst
   (if exists then fetch else clone) repo

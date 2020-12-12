@@ -13,7 +13,7 @@ import Project.GitProvider
 import Project.Logging
 import System.Exit
 
-data Options = Options
+newtype Options = Options
   { getOptionDirectory :: FilePath
   }
   deriving (Show, Eq)
