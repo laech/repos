@@ -1,8 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Project.GitProvider
-  ( forEachGitLabRepo,
-    forEachGitHubRepo,
+  ( gitlab,
+    github,
+    newGitLabProvider,
+    newGitHubProvider,
+    forEachRepo,
     Provider (..),
   )
 where
@@ -21,34 +24,59 @@ import System.FilePath
 data Provider = Provider
   { getProviderRequest :: Request -> Request,
     getProviderName :: String,
+    getProviderHost :: String,
+    getProviderUser :: String,
+    getProviderToken :: String,
     getProviderPageUrl :: Int -> String,
     getProviderRepoUrl :: Object -> Parser String
   }
 
-forEachGitLabRepo :: String -> IO x -> Manager -> FilePath -> (Repo -> IO a) -> IO [a]
-forEachGitLabRepo token authenticated =
-  forEachRepo
-    authenticated
+github = "github"
+
+gitlab = "gitlab"
+
+approveProviderCredentials :: Provider -> IO ()
+approveProviderCredentials provider =
+  let [host, user, token] =
+        [ getProviderHost,
+          getProviderUser,
+          getProviderToken
+        ]
+          <*> pure provider
+   in approveCredential host user token
+
+newGitLabProvider :: IO Provider
+newGitLabProvider = do
+  let host = "gitlab.com"
+  (user, token) <- fillCredential host
+  pure
     Provider
-      { getProviderName = "gitlab",
+      { getProviderName = gitlab,
+        getProviderHost = host,
+        getProviderUser = user,
+        getProviderToken = token,
         getProviderPageUrl = ("https://gitlab.com/api/v4/projects?owned=true&page=" ++) . show,
         getProviderRepoUrl = (.: "http_url_to_repo"),
         getProviderRequest = \req ->
           req
-            { requestHeaders = [("Private-Token", pack token)]
+            { requestHeaders = [("Authorization", pack $ "Bearer " ++ token)]
             }
       }
 
-forEachGitHubRepo :: String -> IO x -> Manager -> FilePath -> (Repo -> IO a) -> IO [a]
-forEachGitHubRepo token authenticated =
-  forEachRepo
-    authenticated
+newGitHubProvider :: IO Provider
+newGitHubProvider = do
+  let host = "github.com"
+  (user, token) <- fillCredential host
+  pure
     Provider
-      { getProviderName = "github",
+      { getProviderName = github,
+        getProviderHost = host,
+        getProviderUser = user,
+        getProviderToken = token,
         getProviderPageUrl = ("https://api.github.com/user/repos?type=owner&page=" ++) . show,
         getProviderRepoUrl = (.: "clone_url"),
         getProviderRequest = \req ->
-          applyBasicAuth "PersonalAccessToken" (pack token) $
+          applyBasicAuth (pack user) (pack token) $
             req
               { requestHeaders =
                   [ ("Accept", "application/vnd.github.v3+json"),
@@ -57,12 +85,13 @@ forEachGitHubRepo token authenticated =
               }
       }
 
-forEachRepo :: IO x -> Provider -> Manager -> FilePath -> (Repo -> IO a) -> IO [a]
-forEachRepo authenticated provider manager parent action = forEachPage 1
+forEachRepo :: Provider -> Manager -> FilePath -> (Repo -> IO a) -> IO [a]
+forEachRepo provider manager parent action = forEachPage initialPage
   where
+    initialPage = 1
     forEachPage i = do
       repos <- getPage provider manager parent i
-      when (i == 1) (() <$ authenticated)
+      when (i == initialPage) $approveProviderCredentials provider
       results <- mapM lockAction repos
       if null results
         then pure results

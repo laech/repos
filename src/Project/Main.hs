@@ -30,34 +30,26 @@ main = do
 
 process :: Options -> IO Bool
 process options = do
-  gitlabToken <- fillCredential gitlabHost
-  githubToken <- fillCredential githubHost
   manager <- newTlsManager
-  results <- runAsync gitlabToken githubToken manager
+  providers <- sequence [newGitLabProvider, newGitHubProvider]
+  results <- runAsync providers manager
   and <$> mapM wait results
   where
-    gitlabHost = "gitlab.com"
-    githubHost = "github.com"
-    runAsync gitlabToken githubToken manager = do
+    runAsync providers manager = do
       let dir = getOptionDirectory options
       info $ "> " ++ dir
       sem <- newQSem 6
-      liftA2
-        (++)
-        ( forEachGitLabRepo
-            gitlabToken
-            (approveCredential gitlabHost "PersonalAccessToken" gitlabToken)
-            manager
-            dir
-            (handle sem False)
-        )
-        ( forEachGitHubRepo
-            githubToken
-            (approveCredential githubHost "PersonalAccessToken" githubToken)
-            manager
-            dir
-            (handle sem True)
-        )
+      concat
+        <$> mapM
+          ( \provider ->
+              forEachRepo
+                provider
+                manager
+                dir
+                (handle sem (getProviderName provider == github))
+          )
+          providers
+
     handle sem setAsOrigin =
       async
         . bracket_ (waitQSem sem) (signalQSem sem)

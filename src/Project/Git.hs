@@ -152,26 +152,32 @@ fetchRepo setAsOrogin repo = do
               }
         }
 
-fillCredential :: String -> IO String
+fillCredential :: String -> IO (String, String)
 fillCredential host = do
   output <-
-    readProcess "git" ["credential", "fill"] $
-      intercalate "\n" ["protocol=https", "host=" ++ host, ""]
+    fmap lines
+      . readProcess "git" ["credential", "fill"]
+      $ intercalate "\n" ["protocol=https", "host=" ++ host, ""]
   pure
-    . head
-    . map (drop . length $ "password=")
-    . filter (isPrefixOf "password=")
-    . lines
-    $ output
+    ( head
+        . map (drop . length $ "username=")
+        . filter (isPrefixOf "username=")
+        $ output,
+      head
+        . map (drop . length $ "password=")
+        . filter (isPrefixOf "password=")
+        $ output
+    )
 
-approveCredential :: String -> String -> String -> IO String
-approveCredential host username password = do
+approveCredential :: String -> String -> String -> IO ()
+approveCredential host user token = do
   readProcess "git" ["credential", "approve"] $
     intercalate
       "\n"
       [ "protocol=https",
         "host=" ++ host,
-        "username=" ++ username,
-        "password=" ++ password,
+        "username=" ++ user,
+        "password=" ++ token,
         ""
       ]
+  pure ()
