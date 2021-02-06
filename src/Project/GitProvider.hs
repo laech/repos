@@ -7,6 +7,7 @@ module Project.GitProvider
   )
 where
 
+import Control.Monad
 import Data.Aeson
 import Data.Aeson.Types
 import Data.ByteString.Char8 (pack)
@@ -24,9 +25,10 @@ data Provider = Provider
     getProviderRepoUrl :: Object -> Parser String
   }
 
-forEachGitLabRepo :: String -> Manager -> FilePath -> (Repo -> IO a) -> IO [a]
-forEachGitLabRepo token =
+forEachGitLabRepo :: String -> IO x -> Manager -> FilePath -> (Repo -> IO a) -> IO [a]
+forEachGitLabRepo token authenticated =
   forEachRepo
+    authenticated
     Provider
       { getProviderName = "gitlab",
         getProviderPageUrl = ("https://gitlab.com/api/v4/projects?owned=true&page=" ++) . show,
@@ -37,9 +39,10 @@ forEachGitLabRepo token =
             }
       }
 
-forEachGitHubRepo :: String -> Manager -> FilePath -> (Repo -> IO a) -> IO [a]
-forEachGitHubRepo token =
+forEachGitHubRepo :: String -> IO x -> Manager -> FilePath -> (Repo -> IO a) -> IO [a]
+forEachGitHubRepo token authenticated =
   forEachRepo
+    authenticated
     Provider
       { getProviderName = "github",
         getProviderPageUrl = ("https://api.github.com/user/repos?type=owner&page=" ++) . show,
@@ -54,11 +57,12 @@ forEachGitHubRepo token =
               }
       }
 
-forEachRepo :: Provider -> Manager -> FilePath -> (Repo -> IO a) -> IO [a]
-forEachRepo provider manager parent action = forEachPage 1
+forEachRepo :: IO x -> Provider -> Manager -> FilePath -> (Repo -> IO a) -> IO [a]
+forEachRepo authenticated provider manager parent action = forEachPage 1
   where
     forEachPage i = do
       repos <- getPage provider manager parent i
+      when (i == 1) (() <$ authenticated)
       results <- mapM lockAction repos
       if null results
         then pure results

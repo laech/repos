@@ -1,6 +1,7 @@
 module Project.Git
   ( fetchRepo,
-    getCredential,
+    approveCredential,
+    fillCredential,
     getRepoName,
     Repo (..),
     Remote (..),
@@ -151,8 +152,8 @@ fetchRepo setAsOrogin repo = do
               }
         }
 
-getCredential :: String -> IO String
-getCredential host = do
+fillCredential :: String -> IO String
+fillCredential host = do
   output <-
     readProcess "git" ["credential", "fill"] $
       intercalate "\n" ["protocol=https", "host=" ++ host, ""]
@@ -162,3 +163,15 @@ getCredential host = do
     . filter (isPrefixOf "password=")
     . lines
     $ output
+
+approveCredential :: String -> String -> String -> IO String
+approveCredential host username password = do
+  readProcess "git" ["credential", "approve"] $
+    intercalate
+      "\n"
+      [ "protocol=https",
+        "host=" ++ host,
+        "username=" ++ username,
+        "password=" ++ password,
+        ""
+      ]
